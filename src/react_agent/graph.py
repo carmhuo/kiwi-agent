@@ -44,7 +44,8 @@ async def call_model(state: State) -> Dict[str, List[AIMessage]]:
     response = cast(
         AIMessage,
         await model.ainvoke(
-            [{"role": "system", "content": system_message}, *state.messages]
+            [{"role": "system", "content": system_message}, *state.messages],
+            extra_body={"enable_thinking": False}
         ),
     )
 

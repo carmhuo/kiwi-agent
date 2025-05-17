@@ -13,7 +13,7 @@ from langchain_tavily import TavilySearch  # type: ignore[import-not-found]
 from react_agent.configuration import Configuration
 
 
-async def search(query: str) -> Optional[dict[str, Any]]:
+async def web_search(query: str) -> Optional[dict[str, Any]]:
     """Search for general web results.
 
     This function performs a search using the Tavily search engine, which is designed
@@ -25,4 +25,4 @@ async def search(query: str) -> Optional[dict[str, Any]]:
     return cast(dict[str, Any], await wrapped.ainvoke({"query": query}))
 
 
-TOOLS: List[Callable[..., Any]] = [search]
+TOOLS: List[Callable[..., Any]] = [web_search]
