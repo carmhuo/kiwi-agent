@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能问答系统</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --background: #f5f7fa;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--background);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .chat-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .chat-history {
+            height: 60vh;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin: 1rem 0;
+            display: flex;
+            gap: 1rem;
+        }
+
+        
+
+        .user-message {
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .user-message .message-bubble {
+            background: var(--primary-color);
+            color: white;
+            border-radius: 1rem 1rem 0 1rem;
+        }
+
+        .bot-message .message-bubble {
+            background: #f0f4f9;
+            color: #333;
+            border-radius: 1rem 1rem 1rem 0;
+        }
+
+        .input-container {
+            position: relative;
+            border-top: 1px solid #eee;
+            padding: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* 新增工具消息样式 */
+        .tool-message .message-bubble {
+            background: #e6f4ea;
+            border: 1px solid #81c784;
+            font-family: Monaco, Consolas, monospace;
+            white-space: pre-wrap;
+        }
+
+        /* 元数据展示样式 */
+        .metadata {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(0,0,0,0.05);
+            border-radius: 4px;
+        }
+
+        /* 工具调用标记 */
+        .tool-call {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            background: #4a90e2;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* 成功/失败状态指示 */
+        .status-success::before {
+            content: "✓";
+            color: #4CAF50;
+            margin-right: 0.5rem;
+        }
+
+        .status-failure::before {
+            content: "✗";
+            color: #f44336;
+            margin-right: 0.5rem;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 1rem;
+            color: #666;
+            font-style: italic;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) {
+            .message-bubble {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-history" id="chatHistory"></div>
+            <div class="typing-indicator" id="typingIndicator">AI 正在思考...</div>
+            <div class="input-container">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="userInput" 
+                        placeholder="输入您的问题..."
+                        autocomplete="off"
+                    >
+                    <button id="sendButton">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatHistory = document.getElementById('chatHistory')
+        const userInput = document.getElementById('userInput')
+        const sendButton = document.getElementById('sendButton')
+        const typingIndicator = document.getElementById('typingIndicator')
+        let eventSource = null
+
+        // 添加用户消息
+        function addUserMessage(content) {
+            const div = document.createElement('div')
+            div.className = 'message user-message'
+            div.innerHTML = `
+                <div class="message-bubble">${content}</div>
+            `
+            chatHistory.appendChild(div)
+            scrollToBottom()
+        }
+
+        // 创建新的机器人消息容器
+        function createBotMessage() {
+            const div = document.createElement('div')
+            div.className = 'message bot-message'
+            const bubble = document.createElement('div')
+            bubble.className = 'message-bubble'
+            div.appendChild(bubble)
+            chatHistory.appendChild(div)
+            scrollToBottom()
+            return bubble
+        }
+
+        // 自动滚动到底部
+        function scrollToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight
+        }
+
+        // 处理流式响应
+        // 修改后的处理函数
+        function handleStreamResponse(query) {
+            if (eventSource) eventSource.close()
+
+            const responseContainer = createBotMessage()
+            let buffer = ''
+            
+            eventSource = new EventSource(`/api/stream?query=${encodeURIComponent(query)}`)
+            
+            typingIndicator.style.display = 'block'
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const rawData = event.data
+                    buffer += rawData
+
+                    // 尝试解析完整JSON对象
+                    const jsonStart = buffer.indexOf('{')
+                    const jsonEnd = buffer.lastIndexOf('}') + 1
+                    
+                    if (jsonStart === -1 || jsonEnd === 0) return
+                    
+                    const jsonStr = buffer.slice(jsonStart, jsonEnd)
+                    const data = JSON.parse(jsonStr)
+                    buffer = buffer.slice(jsonEnd)
+
+                    typingIndicator.style.display = 'none'
+
+                    // 根据消息类型处理
+                    switch(data.type) {
+                        case 'human':
+                            addUserMessage(data.content)
+                            break
+                        case 'ai':
+                            handleAIMessage(data, responseContainer)
+                            break
+                        case 'tool':
+                            handleToolMessage(data, responseContainer)
+                            break
+                        default:
+                            console.warn('Unknown message type:', data.type)
+                    }
+                    
+                    scrollToBottom()
+                } catch (error) {
+                    console.log('Partial JSON:', buffer)
+                }
+            }
+
+            eventSource.onerror = () => {
+                eventSource.close()
+                typingIndicator.style.display = 'none'
+                if (!responseContainer.innerHTML) {
+                    responseContainer.innerHTML = '请求中断，请重试'
+                }
+            }
+        }
+
+        function handleAIMessage(data, container) {
+            let html = data.content
+            
+            // 处理工具调用
+            if (data.tool_calls && data.tool_calls.length > 0) {
+                html += data.tool_calls.map(tool => `
+                    <div class="tool-call">
+                        调用工具: ${tool.name}
+                        ${tool.args ? `<div class="metadata">参数: ${JSON.stringify(tool.args)}</div>` : ''}
+                    </div>
+                `).join('')
+            }
+
+            // 显示元数据
+            if (data.response_metadata) {
+                html += `<div class="metadata">
+                    模型: ${data.response_metadata.model_name || '未知'} |
+                    Token用量: ${data.usage_metadata?.total_tokens || '未知'}
+                </div>`
+            }
+
+            container.innerHTML += html
+        }
+
+        function handleToolMessage(data, container) {
+            const statusClass = data.status === 'success' ? 'status-success' : 'status-failure'
+            const toolInfo = `
+                <div class="${statusClass}">
+                    <strong>${data.name}</strong> 执行结果:
+                    <pre>${data.content}</pre>
+                    ${data.tool_call_id ? `<div class="metadata">调用ID: ${data.tool_call_id}</div>` : ''}
+                </div>
+            `
+            container.innerHTML += toolInfo
+        }
+
+        // 发送消息处理
+        async function sendMessage() {
+            const query = userInput.value.trim()
+            if (!query) return
+
+            // 禁用输入
+            userInput.value = ''
+            userInput.disabled = true
+            sendButton.disabled = true
+
+            // 添加用户消息
+            addUserMessage(query)
+
+            // 发起流式请求
+            try {
+                handleStreamResponse(query)
+            } catch (error) {
+                console.error('Error:', error)
+                createBotMessage().textContent = '请求失败，请重试'
+            } finally {
+                userInput.disabled = false
+                sendButton.disabled = false
+                userInput.focus()
+            }
+        }
+
+        // 事件监听
+        sendButton.addEventListener('click', sendMessage)
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                sendMessage()
+            }
+        })
+
+        // 初始化聚焦输入框
+        userInput.focus()
+    </script>
+</body>
+</html>
