@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能问答系统</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --ai-color: #00c853;
+            --background: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-primary: #1a1a1a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--background);
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .chat-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-history {
+            height: 60vh;
+            padding: 1.5rem;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin: 1.5rem 0;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .user-message {
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 1rem;
+            border-radius: 1rem;
+            animation: fadeIn 0.3s ease-in;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        .user-message .message-bubble {
+            background: var(--primary-color);
+            color: white;
+            border-radius: 1rem 0.25rem 1rem 1rem;
+        }
+
+        .ai-message .message-bubble {
+            background: #f0f4f9;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-radius: 0.25rem 1rem 1rem 1rem;
+        }
+
+        .tool-call {
+            margin: 0.8rem 0;
+            border-left: 3px solid var(--ai-color);
+            background: rgba(0, 200, 83, 0.05);
+            padding: 0.8rem;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .tool-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tool-header::after {
+            content: '▶';
+            font-size: 0.8em;
+            transition: transform 0.2s;
+        }
+
+        .tool-header.expanded::after {
+            transform: rotate(90deg);
+        }
+
+        .tool-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .tool-details {
+            font-family: Monaco, Consolas, monospace;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            padding: 0.5rem;
+            background: rgba(0,0,0,0.03);
+            border-radius: 4px;
+            margin: 0.3rem 0;
+        }
+
+        .metadata {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.8rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .input-container {
+            padding: 1rem;
+            background: rgba(255,255,255,0.9);
+            border-top: 1px solid #eee;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: -2px;
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        button:hover {
+            filter: brightness(0.95);
+        }
+
+        .typing-indicator {
+            padding: 0.5rem 1rem;
+            color: #666;
+            font-size: 0.9rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1 }
+            50% { opacity: 0.6 }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 1rem auto;
+            }
+            .message::before {
+                width: 1.75rem;
+                height: 1.75rem;
+                font-size: 0.65rem;
+            }
+            .message-bubble {
+                max-width: 80%;
+                padding: 0.75rem;
+            }
+            input[type="text"] {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-history" id="chatHistory" role="log" aria-live="polite"></div>
+            <div class="typing-indicator" id="typingIndicator">AI 正在思考...</div>
+            <div class="input-container">
+                <div class="input-group">
+                    <input 
+                        type="text"
+                        id="userInput"
+                        placeholder="输入问题，按 Enter 发送"
+                        aria-label="输入问题"
+                        autocomplete="off"
+                        autofocus
+                    >
+                    <button id="sendButton" aria-label="发送消息">
+                        发送
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatHistory = document.getElementById('chatHistory')
+        const userInput = document.getElementById('userInput')
+        const sendButton = document.getElementById('sendButton')
+        const typingIndicator = document.getElementById('typingIndicator')
+        let currentStream = null
+        const toolCallMap = new Map()
+
+        function createMessageElement(type) {
+            const container = document.createElement('div')
+            container.className = `message ${type}-message`
+            
+            const bubble = document.createElement('div')
+            bubble.className = 'message-bubble'
+            
+            container.appendChild(bubble)
+            return { container, bubble }
+        }
+
+        function appendMessage(content, type = 'user') {
+            const { container, bubble } = createMessageElement(type)
+            bubble.textContent = content
+            chatHistory.appendChild(container)
+            container.scrollIntoView({ behavior: 'smooth' })
+            return bubble
+        }
+
+        function updateAIMessage(bubble, data) {
+            // 处理工具调用
+            if (data.tool_calls?.length) {
+                data.tool_calls.forEach(tool => {
+                    const toolId = `tool-${tool.id}`
+                    const existingTool = bubble.querySelector(`#${toolId}`)
+                    
+                    if (!existingTool) {
+                        const toolCall = document.createElement('div')
+                        toolCall.className = 'tool-call'
+                        toolCall.id = toolId
+                        toolCall.innerHTML = `
+                            <div class="tool-header">
+                                <span>🛠️ 调用工具: ${tool.name}</span>
+                            </div>
+                            <div class="tool-content">
+                                <div class="tool-details">参数: ${JSON.stringify(tool.args, null, 2)}</div>
+                            </div>
+                        `
+                        
+                        const header = toolCall.querySelector('.tool-header')
+                        const content = toolCall.querySelector('.tool-content')
+                        
+                        header.addEventListener('click', () => {
+                            const isExpanded = header.classList.toggle('expanded')
+                            content.style.maxHeight = isExpanded ? `${content.scrollHeight}px` : '0'
+                        })
+                        
+                        bubble.appendChild(toolCall)
+                        toolCallMap.set(tool.id, toolCall)
+                    }
+                })
+            }
+
+            // 处理工具执行结果
+            if (data.type === 'tool') {
+                const toolCall = toolCallMap.get(data.tool_call_id)
+                if (toolCall) {
+                    const content = toolCall.querySelector('.tool-content')
+                    const resultDiv = document.createElement('div')
+                    resultDiv.className = 'tool-details'
+                    resultDiv.innerHTML = `
+                        <div>状态: ${data.status === 'success' ? '✅成功' : '❌失败'}</div>
+                        <pre>结果: ${JSON.stringify(data.content, null, 2)}</pre>
+                    `
+                    content.appendChild(resultDiv)
+                    content.style.maxHeight = `${content.scrollHeight}px`
+                }
+            }
+
+            // 更新内容
+            if (data.content) {
+                bubble.innerHTML += data.content
+                    .replace(/\n/g, '<br>')
+                    .replace(/ /g, '&nbsp;')
+            }
+
+            // 添加元数据
+            if (data.response_metadata || data.usage_metadata) {
+                const metadata = document.createElement('div')
+                metadata.className = 'metadata'
+                metadata.innerHTML = `
+                    <div>模型: ${data.response_metadata?.model_name || '未知'}</div>
+                    <div>Tokens: ${data.usage_metadata?.total_tokens || '未知'}</div>
+                    <div>状态: ${data.response_metadata?.finish_reason || '完成'}
+                `
+                bubble.appendChild(metadata)
+            }
+            
+        }
+
+        async function handleStreamResponse(query) {
+            if (currentStream) currentStream.close()
+            
+            const responseBubble = appendMessage('', 'ai')
+            typingIndicator.style.display = 'block'
+
+            try {
+                currentStream = new EventSource(`/api/stream?query=${encodeURIComponent(query)}`)
+                
+                currentStream.onmessage = ({ data }) => {
+                    try {
+                        const parsed = JSON.parse(data)
+                        typingIndicator.style.display = 'none'
+
+                        if (parsed.type === 'ai' || parsed.type === 'tool') {
+                            updateAIMessage(responseBubble, parsed)
+                            chatHistory.scrollTop = chatHistory.scrollHeight
+                        }
+                    } catch (error) {
+                        console.error('解析错误:', error)
+                    }
+                }
+
+                currentStream.onerror = () => {
+                    typingIndicator.style.display = 'none'
+                    if (!responseBubble.textContent) {
+                        responseBubble.textContent = '响应中断，请重试'
+                    }
+                    currentStream.close()
+                }
+
+                currentStream.addEventListener('end', () => {
+                    console.log('流式传输完成');
+                    currentStream.close();
+                    currentStream = null;
+                });
+
+            } catch (error) {
+                console.error('连接错误:', error)
+                appendMessage('请求失败，请检查网络连接', 'ai')
+            }
+        }
+
+        async function sendMessage() {
+            const query = userInput.value.trim()
+            if (!query) return
+
+            userInput.value = ''
+            userInput.disabled = true
+            sendButton.disabled = true
+            
+            appendMessage(query, 'user')
+
+            try {
+                await handleStreamResponse(query)
+            } finally {
+                userInput.disabled = false
+                sendButton.disabled = false
+                userInput.focus()
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage)
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                sendMessage()
+            }
+        })
+    </script>
+</body>
+</html>

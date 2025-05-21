@@ -7,6 +7,8 @@
     <style>
         :root {
             --primary-color: #4a90e2;
+            --ai-color: #00c853;
+            --tool-color: #ff9100;
             --background: #f5f7fa;
             --card-bg: #ffffff;
         }
@@ -43,15 +45,44 @@
         }
 
         .message {
-            margin: 1rem 0;
+            margin: 1.5rem 0;
             display: flex;
             gap: 1rem;
+            align-items: flex-start;
         }
 
-        
+        .message::before {
+            content: 'AI';
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
 
         .user-message {
-            justify-content: flex-end;
+            flex-direction: row-reverse;
+        }
+        .user-message::before {
+            content: 'You';
+            background-color: var(--primary-color);
+        }
+
+        .ai-message::before {
+            content: 'AI';
+            background-color: var(--ai-color);
+        }
+
+        .tool-message::before {
+            content: 'Tool';
+            background-color: var(--tool-color);
+            font-size: 0.7rem;
         }
 
         .message-bubble {
@@ -59,6 +90,7 @@
             padding: 1rem 1.25rem;
             border-radius: 1rem;
             animation: fadeIn 0.3s ease-in;
+            position: relative;
         }
 
         .user-message .message-bubble {
@@ -67,10 +99,48 @@
             border-radius: 1rem 1rem 0 1rem;
         }
 
-        .bot-message .message-bubble {
+        .ai-message .message-bubble {
             background: #f0f4f9;
             color: #333;
             border-radius: 1rem 1rem 1rem 0;
+        }
+
+        .tool-message .message-bubble {
+            background: #e6f4ea;
+            border: 1px solid #81c784;
+            font-family: Monaco, Consolas, monospace;
+            white-space: pre-wrap;
+        }
+
+        .metadata {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(0,0,0,0.05);
+            border-radius: 4px;
+        }
+
+        .tool-call {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-success::before {
+            content: "✓";
+            color: #4CAF50;
+            margin-left: 0.5rem;
+        }
+
+        .status-failure::before {
+            content: "✗";
+            color: #f44336;
+            margin-left: 0.5rem;
         }
 
         .input-container {
@@ -82,48 +152,6 @@
         .input-group {
             display: flex;
             gap: 0.5rem;
-        }
-
-        /* 新增工具消息样式 */
-        .tool-message .message-bubble {
-            background: #e6f4ea;
-            border: 1px solid #81c784;
-            font-family: Monaco, Consolas, monospace;
-            white-space: pre-wrap;
-        }
-
-        /* 元数据展示样式 */
-        .metadata {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 0.5rem;
-            padding: 0.5rem;
-            background: rgba(0,0,0,0.05);
-            border-radius: 4px;
-        }
-
-        /* 工具调用标记 */
-        .tool-call {
-            display: inline-block;
-            padding: 0.2rem 0.5rem;
-            background: #4a90e2;
-            color: white;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            margin-bottom: 0.5rem;
-        }
-
-        /* 成功/失败状态指示 */
-        .status-success::before {
-            content: "✓";
-            color: #4CAF50;
-            margin-right: 0.5rem;
-        }
-
-        .status-failure::before {
-            content: "✗";
-            color: #f44336;
-            margin-right: 0.5rem;
         }
 
         input[type="text"] {
@@ -176,6 +204,14 @@
             .message-bubble {
                 max-width: 85%;
             }
+            .message::before {
+                width: 32px;
+                height: 32px;
+                font-size: 0.65rem;
+            }
+            .tool-message::before {
+                font-size: 0.6rem;
+            }
         }
     </style>
 </head>
@@ -205,52 +241,50 @@
         const typingIndicator = document.getElementById('typingIndicator')
         let eventSource = null
 
-        // 添加用户消息
-        function addUserMessage(content) {
+        function createMessage(type) {
             const div = document.createElement('div')
-            div.className = 'message user-message'
-            div.innerHTML = `
+            div.className = `message ${type}-message`
+            return div
+        }
+
+        function addUserMessage(content) {
+            const container = createMessage('user')
+            const timestamp = new Date().toLocaleTimeString()
+            container.innerHTML = `
                 <div class="message-bubble">${content}</div>
+                <div class="metadata">${timestamp}</div>
             `
-            chatHistory.appendChild(div)
+            chatHistory.appendChild(container)
             scrollToBottom()
         }
 
-        // 创建新的机器人消息容器
-        function createBotMessage() {
-            const div = document.createElement('div')
-            div.className = 'message bot-message'
+        function createResponseMessage(type) {
+            const container = createMessage(type)
             const bubble = document.createElement('div')
             bubble.className = 'message-bubble'
-            div.appendChild(bubble)
-            chatHistory.appendChild(div)
+            container.appendChild(bubble)
+            chatHistory.appendChild(container)
             scrollToBottom()
             return bubble
         }
 
-        // 自动滚动到底部
         function scrollToBottom() {
             chatHistory.scrollTop = chatHistory.scrollHeight
         }
 
-        // 处理流式响应
-        // 修改后的处理函数
         function handleStreamResponse(query) {
-            if (eventSource) eventSource.close()
-
-            const responseContainer = createBotMessage()
+            if (eventSource) {
+                eventSource.close()
+            }
+            const responseContainer = createResponseMessage('ai')
             let buffer = ''
             
             eventSource = new EventSource(`/api/stream?query=${encodeURIComponent(query)}`)
-            
             typingIndicator.style.display = 'block'
 
             eventSource.onmessage = (event) => {
                 try {
-                    const rawData = event.data
-                    buffer += rawData
-
-                    // 尝试解析完整JSON对象
+                    buffer += event.data
                     const jsonStart = buffer.indexOf('{')
                     const jsonEnd = buffer.lastIndexOf('}') + 1
                     
@@ -259,32 +293,30 @@
                     const jsonStr = buffer.slice(jsonStart, jsonEnd)
                     const data = JSON.parse(jsonStr)
                     buffer = buffer.slice(jsonEnd)
-
                     typingIndicator.style.display = 'none'
 
-                    // 根据消息类型处理
                     switch(data.type) {
                         case 'human':
                             addUserMessage(data.content)
                             break
                         case 'ai':
-                            handleAIMessage(data, responseContainer)
+                            handleAIMessage(data, createResponseMessage('ai'))
                             break
                         case 'tool':
-                            handleToolMessage(data, responseContainer)
+                            handleToolMessage(data, createResponseMessage('tool'))
                             break
-                        default:
-                            console.warn('Unknown message type:', data.type)
                     }
-                    
                     scrollToBottom()
                 } catch (error) {
+                    console.error('Error parsing JSON:', error)
                     console.log('Partial JSON:', buffer)
                 }
             }
 
             eventSource.onerror = () => {
-                eventSource.close()
+                if (eventSource) {
+                    eventSource.close()
+                }
                 typingIndicator.style.display = 'none'
                 if (!responseContainer.innerHTML) {
                     responseContainer.innerHTML = '请求中断，请重试'
@@ -293,10 +325,8 @@
         }
 
         function handleAIMessage(data, container) {
-            let html = data.content
-            
-            // 处理工具调用
-            if (data.tool_calls && data.tool_calls.length > 0) {
+            let html = data.content || ''
+            if (data.tool_calls?.length > 0) {
                 html += data.tool_calls.map(tool => `
                     <div class="tool-call">
                         调用工具: ${tool.name}
@@ -304,49 +334,41 @@
                     </div>
                 `).join('')
             }
-
-            // 显示元数据
             if (data.response_metadata) {
                 html += `<div class="metadata">
                     模型: ${data.response_metadata.model_name || '未知'} |
                     Token用量: ${data.usage_metadata?.total_tokens || '未知'}
                 </div>`
             }
-
-            container.innerHTML += html
+            container.innerHTML = html
         }
 
         function handleToolMessage(data, container) {
             const statusClass = data.status === 'success' ? 'status-success' : 'status-failure'
             const toolInfo = `
-                <div class="${statusClass}">
-                    <strong>${data.name}</strong> 执行结果:
+                <div class="${statusClass}"> 
+                    Calling tool:<strong> ${data.name}</strong> 执行结果:
                     <pre>${data.content}</pre>
                     ${data.tool_call_id ? `<div class="metadata">调用ID: ${data.tool_call_id}</div>` : ''}
                 </div>
             `
-            container.innerHTML += toolInfo
+            container.innerHTML = toolInfo
         }
 
-        // 发送消息处理
         async function sendMessage() {
             const query = userInput.value.trim()
             if (!query) return
 
-            // 禁用输入
             userInput.value = ''
             userInput.disabled = true
             sendButton.disabled = true
-
-            // 添加用户消息
             addUserMessage(query)
 
-            // 发起流式请求
             try {
                 handleStreamResponse(query)
             } catch (error) {
                 console.error('Error:', error)
-                createBotMessage().textContent = '请求失败，请重试'
+                createResponseMessage('ai').textContent = '请求失败，请重试'
             } finally {
                 userInput.disabled = false
                 sendButton.disabled = false
@@ -354,7 +376,6 @@
             }
         }
 
-        // 事件监听
         sendButton.addEventListener('click', sendMessage)
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -362,8 +383,6 @@
                 sendMessage()
             }
         })
-
-        // 初始化聚焦输入框
         userInput.focus()
     </script>
 </body>

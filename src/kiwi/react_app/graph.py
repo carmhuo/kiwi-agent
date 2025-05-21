@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from langchain_openai import ChatOpenAI
 from typing import Literal
@@ -17,7 +18,7 @@ load_dotenv()  # load environment variables from .env
 # db = SQLDatabase.from_uri("sqlite:////mnt/workspace/data/Chinook.db")
 # 创建 DuckDB 连接，并设置为只读模式
 engine = create_engine(
-    "duckdb:////mnt/workspace/data/duckdb/tpch_sf1.db",
+    "duckdb:////mnt/workspace/data/duckdb/gb_vhcl.db",
     connect_args={
         "read_only": True  # 设置为只读模式
     }
@@ -44,6 +45,8 @@ for tool in tools:
     
 from langgraph.prebuilt import create_react_agent
 
+formatted_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 system_prompt = """
 You are an agent designed to interact with a SQL database.
 Given an input question, create a syntactically correct {dialect} query to run,
@@ -65,9 +68,12 @@ To start you should ALWAYS look at the tables in the database to see what you
 can query. Do NOT skip this step.
 
 Then you should query the schema of the most relevant tables.
+
+The current system time is {current_time}.
 """.format(
     dialect=db.dialect,
     top_k=5,
+    current_time=formatted_time,
 )
 
 agent = create_react_agent(
