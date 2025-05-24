@@ -10,13 +10,21 @@ from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
 
-from react_agent.configuration import Configuration
-from react_agent.state import InputState, State
-from react_agent.tools import TOOLS
-from react_agent.utils import load_chat_model
+from kiwi.react_agent.configuration import Configuration
+from kiwi.react_agent.state import InputState, State
+from kiwi.react_agent.tools import TOOLS, build_tool_system
+from kiwi.react_agent.utils import load_chat_model, from_duckdb
+
+from dotenv import load_dotenv
+
+load_dotenv(override=True)  # load environment variables from .env
 
 # Define the function that calls the model
-
+config = Configuration.from_context()
+db = from_duckdb(config.database_path, config.read_only)
+llm = load_chat_model(config.model)
+tools = build_tool_system(db, llm, config)
+print(f"{db.dialect}: {db.get_usable_table_names()}")
 
 async def call_model(state: State) -> Dict[str, List[AIMessage]]:
     """Call the LLM powering our "agent".
@@ -30,14 +38,16 @@ async def call_model(state: State) -> Dict[str, List[AIMessage]]:
     Returns:
         dict: A dictionary containing the model's response message.
     """
-    configuration = Configuration.from_context()
+    config = Configuration.from_context()
 
     # Initialize the model with tool binding. Change the model or add more tools here.
-    model = load_chat_model(configuration.model).bind_tools(TOOLS)
+    model = load_chat_model(config.model).bind_tools(tools)
 
     # Format the system prompt. Customize this to change the agent's behavior.
-    system_message = configuration.system_prompt.format(
-        system_time=datetime.now(tz=UTC).isoformat()
+    system_message = config.system_prompt.format(
+        dialect=db.dialect,
+        top_k=10,
+        system_time=datetime.now().isoformat()
     )
 
     # Get the model's response
@@ -65,12 +75,11 @@ async def call_model(state: State) -> Dict[str, List[AIMessage]]:
 
 
 # Define a new graph
-
 builder = StateGraph(State, input=InputState, config_schema=Configuration)
 
 # Define the two nodes we will cycle between
 builder.add_node(call_model)
-builder.add_node("tools", ToolNode(TOOLS))
+builder.add_node("tools", ToolNode(tools))
 
 # Set the entrypoint as `call_model`
 # This means that this node is the first one called

@@ -10,7 +10,7 @@ async def main():
         input={
         "messages": [{
             "role": "human",
-            "content": "What is LangGraph?",
+            "content": "当前数据库有哪些表?",
             }],
         },
     ):

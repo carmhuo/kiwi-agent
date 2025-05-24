@@ -8,7 +8,7 @@ from typing import Annotated
 from langchain_core.runnables import ensure_config
 from langgraph.config import get_config
 
-from react_agent import prompts
+from kiwi.react_agent import prompts
 
 
 @dataclass(kw_only=True)
@@ -24,7 +24,7 @@ class Configuration:
     )
 
     model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="Qwen/Qwen3-235B-A22B",
+        default="Qwen/Qwen2.5-32B-Instruct",
         metadata={
             "description": "The name of the language model to use for the agent's main interactions. "
             "Should be in the form: provider/model-name."
@@ -36,6 +36,22 @@ class Configuration:
         metadata={
             "description": "The maximum number of search results to return for each search query."
         },
+    )
+
+     # New database configuration fields
+    database_path: str = field(
+        default="/mnt/workspace/data/duckdb/gb_vhcl.db",
+        metadata={
+            "description": "Filesystem path to the DuckDB database file",
+            "example": "/data/analytics.db or :memory:"
+        }
+    )
+    
+    read_only: bool = field(
+        default=True,
+        metadata={
+            "description": "Whether to open the database in read-only mode"
+        }
     )
 
     @classmethod
