@@ -32,7 +32,7 @@ def load_chat_model(fully_specified_name: str) -> BaseChatModel:
     #     api_key=os.getenv("MODELSCOPE_API_KEY"),  # ModelScope Token
     #     temperature=0
     # )
-    model = "Qwen/Qwen2.5-7B-Instruct"
+    model = "Qwen/Qwen2.5-32B-Instruct"
     if fully_specified_name:
         model = fully_specified_name
     provide = "openai"

@@ -8,7 +8,8 @@ consider implementing more robust and specialized tools tailored to your needs.
 
 from typing import Any, Callable, List, Optional, cast
 
-from langchain_tavily import TavilySearch  # type: ignore[import-not-found]
+from langchain_tavily import TavilySearch
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
 
 from react_agent.configuration import Configuration
 
@@ -23,6 +24,13 @@ async def web_search(query: str) -> Optional[dict[str, Any]]:
     configuration = Configuration.from_context()
     wrapped = TavilySearch(max_results=configuration.max_search_results)
     return cast(dict[str, Any], await wrapped.ainvoke({"query": query}))
+
+toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+
+tools = toolkit.get_tools()
+
+for tool in tools:
+    print(f"{tool.name}: {tool.description}\n")
 
 
 TOOLS: List[Callable[..., Any]] = [web_search]

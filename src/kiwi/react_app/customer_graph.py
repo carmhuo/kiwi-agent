@@ -136,7 +136,7 @@ You will call the appropriate tool to execute the query after running this check
 def check_query(state: MessagesState):
     system_message = {
         "role": "system",
-        "content": generate_query_system_prompt,
+        "content": check_query_system_prompt,
     }
 
     # Generate an artificial user message to check
