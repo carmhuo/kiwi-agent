@@ -1,6 +1,8 @@
 import os
 import sys
 import socket
+from datetime import datetime
+
 from kiwi.flask_app import VannaFlaskApp
 from kiwi import ChromaDB_VectorStore
 from kiwi import OpenAI_Chat
@@ -46,11 +48,28 @@ def main():
                 OpenAI_Chat.__init__(self, client=client, config=config)
 
         print("🧠 Initializing Vanna AI...")
+
+        formatted_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        initial_prompt = """
+            You are a {dialect} expert.
+            Please help to generate a syntactically correct SQL query to answer the question. 
+            Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
+
+            Your response should ONLY be based on the given context and follow the response guidelines and format instructions.
+
+            The current system time is {current_time}.
+        """.format(
+            dialect='duckdb',
+            top_k=1000,
+            current_time=formatted_time,
+        )
         vn = MyVanna(config={
             'model': 'Qwen/Qwen2.5-32B-Instruct', 
             'path': '/mnt/workspace/data/chroma_db', 
             'client': 'persistent', 
-            'n_results_sql': 5
+            'n_results_sql': 5,
+            'initial_prompt': initial_prompt
         })
 
         # Connect to database
