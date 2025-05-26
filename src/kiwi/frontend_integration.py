@@ -27,8 +27,14 @@ class FrontendIntegration:
         project_root = current_dir.parent.parent.parent
         frontend_dir = project_root / 'frontend'
         
+        # If not found in expected location, try current working directory
         if not frontend_dir.exists():
-            raise FileNotFoundError(f"Frontend directory not found at {frontend_dir}")
+            cwd_frontend = Path.cwd() / 'frontend'
+            if cwd_frontend.exists():
+                return cwd_frontend
+        
+        if not frontend_dir.exists():
+            raise FileNotFoundError(f"Frontend directory not found at {frontend_dir} or {Path.cwd() / 'frontend'}")
         
         return frontend_dir
     
@@ -200,8 +206,14 @@ class FastAPIIntegration:
         project_root = current_dir.parent.parent.parent
         frontend_dir = project_root / 'frontend'
         
+        # If not found in expected location, try current working directory
         if not frontend_dir.exists():
-            raise FileNotFoundError(f"Frontend directory not found at {frontend_dir}")
+            cwd_frontend = Path.cwd() / 'frontend'
+            if cwd_frontend.exists():
+                return cwd_frontend
+        
+        if not frontend_dir.exists():
+            raise FileNotFoundError(f"Frontend directory not found at {frontend_dir} or {Path.cwd() / 'frontend'}")
         
         return frontend_dir
     

@@ -32,6 +32,66 @@ class DemoVanna(VannaBase):
             {"question": "Show customer distribution by region", "sql": "SELECT region, COUNT(*) as customer_count FROM customers GROUP BY region ORDER BY customer_count DESC"}
         ]
     
+    # Required abstract methods implementation
+    def add_ddl(self, ddl: str) -> str:
+        """Add DDL statement (demo implementation)"""
+        return f"Added DDL: {ddl}"
+    
+    def add_documentation(self, documentation: str) -> str:
+        """Add documentation (demo implementation)"""
+        return f"Added documentation: {documentation}"
+    
+    def add_question_sql(self, question: str, sql: str) -> str:
+        """Add question-SQL pair (demo implementation)"""
+        self.training_data.append({"question": question, "sql": sql})
+        return f"Added training pair: {question} -> {sql}"
+    
+    def assistant_message(self, message: str) -> str:
+        """Format assistant message"""
+        return f"Assistant: {message}"
+    
+    def generate_embedding(self, data: str) -> list:
+        """Generate embedding (demo implementation)"""
+        # Return a dummy embedding
+        return [0.1] * 384
+    
+    def get_related_ddl(self, question: str) -> list:
+        """Get related DDL (demo implementation)"""
+        return [
+            "CREATE TABLE customers (id INT, customer_name VARCHAR(255), region VARCHAR(100));",
+            "CREATE TABLE orders (id INT, customer_id INT, order_date DATE, total_amount DECIMAL(10,2));"
+        ]
+    
+    def get_related_documentation(self, question: str) -> list:
+        """Get related documentation (demo implementation)"""
+        return [
+            "The customers table contains customer information including name and region.",
+            "The orders table tracks all customer orders with dates and amounts."
+        ]
+    
+    def get_similar_question_sql(self, question: str) -> list:
+        """Get similar question-SQL pairs (demo implementation)"""
+        return [
+            {"question": "What are the top customers?", "sql": "SELECT customer_name FROM customers ORDER BY sales DESC"},
+            {"question": "Show revenue by month", "sql": "SELECT month, revenue FROM monthly_revenue"}
+        ]
+    
+    def remove_training_data(self, id: str) -> bool:
+        """Remove training data (demo implementation)"""
+        return True
+    
+    def submit_prompt(self, prompt: str) -> str:
+        """Submit prompt to LLM (demo implementation)"""
+        return f"LLM Response to: {prompt}"
+    
+    def system_message(self, message: str) -> str:
+        """Format system message"""
+        return f"System: {message}"
+    
+    def user_message(self, message: str) -> str:
+        """Format user message"""
+        return f"User: {message}"
+    
     def generate_sql(self, question, **kwargs):
         """Generate SQL for a given question"""
         # Simple demo implementation
@@ -140,10 +200,23 @@ def main():
     )
     
     # Run the app
+    import socket
+    
+    # Find an available port
+    def find_free_port():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('', 0))
+            s.listen(1)
+            port = s.getsockname()[1]
+        return port
+    
+    port = find_free_port()
+    print(f"🚀 Starting server on port {port}...")
+    
     try:
         app.run(
             host="0.0.0.0",  # Allow external connections
-            port=12000,      # Use the port from runtime info
+            port=port,       # Use a free port
             debug=True
         )
     except KeyboardInterrupt:
