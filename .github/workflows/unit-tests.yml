@@ -1,4 +1,4 @@
-# This workflow will run unit tests for the current project
+# This workflow runs unit tests, linting, and code quality checks
 
 name: CI
 
@@ -6,6 +6,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
+    branches: ["main"]
   workflow_dispatch: # Allows triggering the workflow manually in GitHub UI
 
 # If another push to the same PR or branch happens while this workflow is still running,
@@ -14,44 +15,121 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
-  unit-tests:
-    name: Unit Tests
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.11", "3.12"]
-    runs-on: ${{ matrix.os }}
+  lint-and-type-check:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v5
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
+          cache: 'pip'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      
       - name: Install dependencies
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
           uv venv
-          uv pip install -r pyproject.toml
+          uv pip install -e ".[dev]"
+      
       - name: Lint with ruff
-        run: |
-          uv pip install ruff
-          uv run ruff check .
-      - name: Lint with mypy
-        run: |
-          uv pip install mypy
-          uv run mypy --strict src/
+        run: uv run ruff check . --output-format=github
+      
+      - name: Format check with ruff
+        run: uv run ruff format --check .
+      
+      - name: Type check with mypy
+        run: uv run mypy src/
+
+  spell-check:
+    name: Spell Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
       - name: Check README spelling
         uses: codespell-project/actions-codespell@v2
         with:
           ignore_words_file: .codespellignore
           path: README.md
+          
       - name: Check code spelling
         uses: codespell-project/actions-codespell@v2
         with:
           ignore_words_file: .codespellignore
           path: src/
+
+  unit-tests:
+    name: Unit Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev,test]"
+      
       - name: Run tests with pytest
         run: |
-          uv pip install pytest
-          uv run pytest tests/unit_tests
+          uv run pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-report=term-missing
+      
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Lint frontend code
+        run: npm run lint
+      
+      - name: Format check
+        run: npm run format -- --check
+      
+      - name: Build frontend
+        run: npm run build
