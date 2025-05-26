@@ -85,5 +85,5 @@ def from_duckdb(uri: str = ":memory:", read_only=True) -> SQLDatabase:
     
     except SQLAlchemyError as e:
         raise RuntimeError(
-            f"无法连接至DuckDB数据库：{db_path} (只读模式: {config.read_only})"
+            f"无法连接至DuckDB数据库：{db_uri} (只读模式: {read_only})"
         ) from e

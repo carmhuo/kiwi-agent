@@ -18,4 +18,4 @@ vn = MyVanna(config={'model' : 'Qwen/Qwen2.5-32B-Instruct', 'path' : '/mnt/works
 vn.connect_to_duckdb('/mnt/workspace/data/duckdb/tpch_sf1.db', read_only=True)
 
 app = VannaFlaskApp(vn, logo=None, title="Welcome to Carmhuo", allow_llm_to_see_data=True, debug=True,)
-app.run()
+app.run(host='0.0.0.0', port=12000, debug=True)
