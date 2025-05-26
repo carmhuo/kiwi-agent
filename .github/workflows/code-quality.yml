@@ -1,0 +1,204 @@
+# This workflow runs comprehensive code quality checks
+
+name: Code Quality
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "0 3 * * 0" # Run every Sunday at 3:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # Needed for SonarCloud
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev,test]"
+          uv pip install coverage[toml] pytest-cov
+      
+      - name: Run comprehensive tests with coverage
+        run: |
+          uv run pytest tests/ \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --cov-branch \
+            --junitxml=pytest-results.xml
+      
+      - name: Generate coverage badge
+        run: |
+          COVERAGE=$(uv run coverage report --format=total)
+          echo "Coverage: $COVERAGE%"
+          
+          # Create coverage badge
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+            COLOR="brightgreen"
+          elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+            COLOR="green"
+          elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+            COLOR="yellow"
+          elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
+            COLOR="orange"
+          else
+            COLOR="red"
+          fi
+          
+          echo "COVERAGE_PERCENTAGE=$COVERAGE" >> $GITHUB_ENV
+          echo "COVERAGE_COLOR=$COLOR" >> $GITHUB_ENV
+      
+      - name: Run complexity analysis
+        run: |
+          uv pip install radon xenon
+          echo "## Cyclomatic Complexity" > complexity-report.md
+          uv run radon cc src/ -a -s >> complexity-report.md
+          echo "" >> complexity-report.md
+          echo "## Maintainability Index" >> complexity-report.md
+          uv run radon mi src/ -s >> complexity-report.md
+          
+          # Check for high complexity
+          uv run xenon src/ --max-absolute B --max-modules A --max-average A || echo "High complexity detected"
+      
+      - name: Run documentation coverage
+        run: |
+          uv pip install interrogate
+          uv run interrogate src/ --generate-badge . --badge-format svg
+          uv run interrogate src/ > doc-coverage.txt
+      
+      - name: Check import sorting
+        run: |
+          uv run ruff check --select I .
+      
+      - name: Check code formatting
+        run: |
+          uv run ruff format --check .
+      
+      - name: Run dead code detection
+        run: |
+          uv pip install vulture
+          uv run vulture src/ --min-confidence 80 > dead-code-report.txt || true
+      
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/
+            pytest-results.xml
+          retention-days: 30
+      
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            complexity-report.md
+            doc-coverage.txt
+            dead-code-report.txt
+            interrogate_badge.svg
+          retention-days: 30
+      
+      - name: Comment PR with quality metrics
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let comment = `## 📊 Code Quality Report\n\n`;
+            comment += `### Coverage: ${process.env.COVERAGE_PERCENTAGE}%\n`;
+            comment += `![Coverage](https://img.shields.io/badge/coverage-${process.env.COVERAGE_PERCENTAGE}%25-${process.env.COVERAGE_COLOR})\n\n`;
+            
+            // Add complexity info if available
+            try {
+              const complexity = fs.readFileSync('complexity-report.md', 'utf8');
+              comment += `### Complexity Analysis\n\`\`\`\n${complexity.slice(0, 1000)}\n\`\`\`\n\n`;
+            } catch (e) {
+              console.log('No complexity report found');
+            }
+            
+            // Add documentation coverage
+            try {
+              const docCov = fs.readFileSync('doc-coverage.txt', 'utf8');
+              const docLines = docCov.split('\n').slice(-5).join('\n');
+              comment += `### Documentation Coverage\n\`\`\`\n${docLines}\n\`\`\`\n\n`;
+            } catch (e) {
+              console.log('No doc coverage report found');
+            }
+            
+            comment += `\n---\n*This comment was automatically generated by the Code Quality workflow.*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  performance-test:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+      
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev,test]"
+          uv pip install pytest-benchmark memory-profiler
+      
+      - name: Run performance tests
+        run: |
+          # Run any performance/benchmark tests if they exist
+          if [ -f "tests/test_performance.py" ]; then
+            uv run pytest tests/test_performance.py --benchmark-json=benchmark-results.json
+          else
+            echo "No performance tests found, skipping..."
+          fi
+      
+      - name: Upload performance results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: |
+            benchmark-results.json
+          retention-days: 30

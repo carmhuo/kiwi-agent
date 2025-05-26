@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Kiwi SQL Assistant</title>
+    <meta name="description" content="Monitor and analyze your SQL queries and database interactions">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+    <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
+</head>
+<body data-page="dashboard">
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <a href="../base/index.html">🥝 Kiwi SQL Assistant</a>
+            </div>
+            <div class="navbar-menu">
+                <a href="../base/index.html" class="navbar-item">Home</a>
+                <a href="../chat/chat.html" class="navbar-item">Chat</a>
+                <a href="dashboard.html" class="navbar-item active">Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="dashboard">
+        <div class="container">
+            <!-- Dashboard Header -->
+            <header class="dashboard-header">
+                <div class="header-content">
+                    <h1>Dashboard</h1>
+                    <p>Monitor your SQL generation and database interactions</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="refreshBtn">
+                        <span>🔄</span> Refresh
+                    </button>
+                    <button class="btn btn-primary" id="exportBtn">
+                        <span>📊</span> Export Data
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Overview -->
+            <section class="stats-overview">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📝</div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="totalQueries">0</div>
+                            <div class="stat-label">Total Queries</div>
+                        </div>
+                        <div class="stat-trend positive">
+                            <span>↗️</span> +12%
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="successRate">0%</div>
+                            <div class="stat-label">Success Rate</div>
+                        </div>
+                        <div class="stat-trend positive">
+                            <span>↗️</span> +5%
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="avgResponseTime">0ms</div>
+                            <div class="stat-label">Avg Response Time</div>
+                        </div>
+                        <div class="stat-trend negative">
+                            <span>↘️</span> -8%
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <div class="stat-number" id="activeUsers">0</div>
+                            <div class="stat-label">Active Users</div>
+                        </div>
+                        <div class="stat-trend positive">
+                            <span>↗️</span> +3%
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section">
+                <div class="charts-grid">
+                    <!-- Query Volume Chart -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Query Volume</h3>
+                            <div class="chart-controls">
+                                <select id="volumePeriod">
+                                    <option value="7d">Last 7 days</option>
+                                    <option value="30d">Last 30 days</option>
+                                    <option value="90d">Last 90 days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="queryVolumeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Query Types Chart -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Query Types</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="queryTypesChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Response Time Chart -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Response Time Trends</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="responseTimeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Database Usage Chart -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Database Usage</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="databaseUsageChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Activity -->
+            <section class="recent-activity">
+                <div class="activity-header">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-filters">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="queries">Queries</button>
+                        <button class="filter-btn" data-filter="errors">Errors</button>
+                        <button class="filter-btn" data-filter="users">Users</button>
+                    </div>
+                </div>
+                <div class="activity-list" id="activityList">
+                    <!-- Activity items will be dynamically loaded -->
+                    <div class="activity-item">
+                        <div class="activity-icon success">✅</div>
+                        <div class="activity-content">
+                            <div class="activity-title">SQL query generated successfully</div>
+                            <div class="activity-description">User requested customer data analysis</div>
+                            <div class="activity-time">2 minutes ago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-icon info">📊</div>
+                        <div class="activity-content">
+                            <div class="activity-title">New dashboard view created</div>
+                            <div class="activity-description">Sales performance dashboard</div>
+                            <div class="activity-time">15 minutes ago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-icon warning">⚠️</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Query optimization suggested</div>
+                            <div class="activity-description">Complex JOIN query could be improved</div>
+                            <div class="activity-time">1 hour ago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-icon success">👤</div>
+                        <div class="activity-content">
+                            <div class="activity-title">New user registered</div>
+                            <div class="activity-description">john.doe@example.com joined</div>
+                            <div class="activity-time">2 hours ago</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-footer">
+                    <button class="btn btn-secondary" id="loadMoreActivity">Load More</button>
+                </div>
+            </section>
+
+            <!-- System Status -->
+            <section class="system-status">
+                <h3>System Status</h3>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-indicator online"></div>
+                        <div class="status-content">
+                            <div class="status-name">API Server</div>
+                            <div class="status-value">Online</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item">
+                        <div class="status-indicator online"></div>
+                        <div class="status-content">
+                            <div class="status-name">Database</div>
+                            <div class="status-value">Connected</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item">
+                        <div class="status-indicator warning"></div>
+                        <div class="status-content">
+                            <div class="status-name">AI Service</div>
+                            <div class="status-value">High Load</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item">
+                        <div class="status-indicator online"></div>
+                        <div class="status-content">
+                            <div class="status-name">Cache</div>
+                            <div class="status-value">Healthy</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script type="module" src="../../assets/js/main.js"></script>
+    <script>
+        // Dashboard-specific JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+        });
+
+        function initializeDashboard() {
+            // Initialize charts
+            initializeCharts();
+            
+            // Load dashboard data
+            loadDashboardData();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Start real-time updates
+            startRealTimeUpdates();
+        }
+
+        function initializeCharts() {
+            // Query Volume Chart
+            const queryVolumeCtx = document.getElementById('queryVolumeChart').getContext('2d');
+            new Chart(queryVolumeCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Queries',
+                        data: [65, 59, 80, 81, 56, 55, 40],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // Query Types Chart
+            const queryTypesCtx = document.getElementById('queryTypesChart').getContext('2d');
+            new Chart(queryTypesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'JOIN'],
+                    datasets: [{
+                        data: [45, 20, 15, 10, 10],
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Response Time Chart
+            const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+            new Chart(responseTimeCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                    datasets: [{
+                        label: 'Response Time (ms)',
+                        data: [120, 150, 180, 200, 170, 140],
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // Database Usage Chart
+            const databaseUsageCtx = document.getElementById('databaseUsageChart').getContext('2d');
+            new Chart(databaseUsageCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['MySQL', 'PostgreSQL', 'SQLite', 'MongoDB', 'Redis'],
+                    datasets: [{
+                        label: 'Usage',
+                        data: [80, 65, 45, 30, 25],
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(255, 99, 132, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadDashboardData() {
+            // Simulate loading data
+            setTimeout(() => {
+                document.getElementById('totalQueries').textContent = '1,234';
+                document.getElementById('successRate').textContent = '98.5%';
+                document.getElementById('avgResponseTime').textContent = '145ms';
+                document.getElementById('activeUsers').textContent = '42';
+            }, 500);
+        }
+
+        function setupEventListeners() {
+            // Refresh button
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                loadDashboardData();
+                // Add loading state
+                this.innerHTML = '<span>🔄</span> Refreshing...';
+                setTimeout(() => {
+                    this.innerHTML = '<span>🔄</span> Refresh';
+                }, 1000);
+            });
+
+            // Export button
+            document.getElementById('exportBtn').addEventListener('click', function() {
+                // Simulate export
+                alert('Dashboard data exported successfully!');
+            });
+
+            // Activity filters
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    filterActivity(this.dataset.filter);
+                });
+            });
+
+            // Load more activity
+            document.getElementById('loadMoreActivity').addEventListener('click', function() {
+                loadMoreActivity();
+            });
+        }
+
+        function filterActivity(filter) {
+            // Simulate filtering activity
+            console.log('Filtering activity by:', filter);
+        }
+
+        function loadMoreActivity() {
+            // Simulate loading more activity
+            const activityList = document.getElementById('activityList');
+            const newItem = document.createElement('div');
+            newItem.className = 'activity-item';
+            newItem.innerHTML = `
+                <div class="activity-icon info">📈</div>
+                <div class="activity-content">
+                    <div class="activity-title">Performance metrics updated</div>
+                    <div class="activity-description">System performance improved by 15%</div>
+                    <div class="activity-time">3 hours ago</div>
+                </div>
+            `;
+            activityList.appendChild(newItem);
+        }
+
+        function startRealTimeUpdates() {
+            // Simulate real-time updates every 30 seconds
+            setInterval(() => {
+                // Update random stats
+                const totalQueries = document.getElementById('totalQueries');
+                const currentValue = parseInt(totalQueries.textContent.replace(',', ''));
+                totalQueries.textContent = (currentValue + Math.floor(Math.random() * 5)).toLocaleString();
+            }, 30000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="./assets/images/favicon.svg" type="image/x-icon">
+    <title>Kiwi Agent Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #chatContainer {
+            width: 80%;
+            max-width: 700px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+        }
+        .assistant-message {
+            background-color: #e9e9eb;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+        .assistant-message strong {
+             color: #555;
+        }
+        #inputArea {
+            display: flex;
+            margin-top: 10px;
+        }
+        #userInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        #sendButton {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #sendButton:hover {
+            background-color: #0056b3;
+        }
+        .loading-indicator {
+            text-align: center;
+            color: #777;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div id="chatContainer">
+        <h2>Kiwi Agent Chat (FastAPI)</h2>
+        <div id="messages">
+            </div>
+        <div id="inputArea">
+            <input type="text" id="userInput" placeholder="输入你的消息...">
+            <button id="sendButton">发送</button>
+        </div>
+         <div id="loadingIndicator" class="loading-indicator" style="display: none;">正在等待回复...</div>
+    </div>
+
+    <script>
+        const userInput = document.getElementById('userInput');
+        const sendButton = document.getElementById('sendButton');
+        const messagesDiv = document.getElementById('messages');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const messageText = userInput.value.trim();
+            if (!messageText) return;
+
+            appendMessage(messageText, 'user');
+            userInput.value = ''; // 清空输入框
+            sendButton.disabled = true;
+            loadingIndicator.style.display = 'block';
+
+            let assistantMessageContainer = null;
+            let currentAssistantSpan = null;
+
+            try {
+                // Ensure this URL matches your FastAPI endpoint
+                const response = await fetch('/api/astream', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream' 
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: messageText }]
+                    })
+                });
+
+                loadingIndicator.style.display = 'none';
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: "发生未知错误", details: response.statusText }));
+                    appendMessage(`错误: ${errorData.error || response.statusText}. ${errorData.details || ''}`, 'error');
+                    sendButton.disabled = false;
+                    return;
+                }
+
+                assistantMessageContainer = document.createElement('div');
+                assistantMessageContainer.className = 'message assistant-message';
+                const strongTag = document.createElement('strong');
+                strongTag.textContent = 'Assistant: ';
+                assistantMessageContainer.appendChild(strongTag);
+                currentAssistantSpan = document.createElement('span');
+                assistantMessageContainer.appendChild(currentAssistantSpan);
+                messagesDiv.appendChild(assistantMessageContainer);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = ''; 
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true }); 
+                    
+                    let position;
+                    while ((position = buffer.indexOf('\n\n')) >= 0) {
+                        const eventString = buffer.substring(0, position);
+                        buffer = buffer.substring(position + 2); 
+
+                        if (eventString.startsWith('data: ')) {
+                            const jsonData = eventString.substring(6); 
+                            try {
+                                const eventData = JSON.parse(jsonData);
+                                // Assuming eventData is the AIMessage.model_dump_json() output
+                                if (eventData.content) { // Check if content exists
+                                    currentAssistantSpan.textContent += eventData.content;
+                                } else if (eventData.role === 'assistant' && eventData.tool_calls && eventData.tool_calls.length > 0) {
+                                    currentAssistantSpan.textContent += ` (Calling tool: ${eventData.tool_calls[0].name}) `;
+                                }
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight; 
+                            } catch (e) {
+                                console.error('解析流中的JSON时出错:', e, jsonData);
+                                currentAssistantSpan.textContent += ` [无法解析的数据块: ${jsonData}] `;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('流式传输失败:', error);
+                if (assistantMessageContainer && currentAssistantSpan) {
+                     currentAssistantSpan.textContent += ` [流式传输错误: ${error.message}]`;
+                } else {
+                    appendMessage(`流式传输错误: ${error.message}`, 'error');
+                }
+                loadingIndicator.style.display = 'none';
+            } finally {
+                sendButton.disabled = false;
+            }
+        }
+
+        function appendMessage(text, type) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${type}-message`;
+            
+            if (type === 'user') {
+                messageElement.innerHTML = `<strong>You:</strong> ${text}`;
+            } else if (type === 'assistant') {
+                messageElement.innerHTML = `<strong>Assistant:</strong> ${text}`;
+            } else if (type === 'error') {
+                messageElement.style.backgroundColor = '#ffdddd';
+                messageElement.style.color = '#d8000c';
+                messageElement.style.alignSelf = 'center';
+                messageElement.textContent = text;
+            }
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; 
+        }
+    </script>
+</body>
+</html>

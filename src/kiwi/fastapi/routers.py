@@ -1,5 +1,6 @@
 # backend/app/routers/agent.py
 import json
+from typing import List
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage, ToolMessage

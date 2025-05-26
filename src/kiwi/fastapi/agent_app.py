@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware # For frontend if on different origin
 from fastapi.responses import FileResponse
 from pathlib import Path
@@ -6,9 +6,9 @@ from pathlib import Path
 from kiwi.fastapi.routers import router # Import the agent router
 
 APP_DIR = Path(__file__).resolve().parent # Path to fastapi
-PROJECT_ROOT_DIR = APP_DIR.parent.parent # Path to project root (e.g., kiwi/src)
-FRONTEND_DIR = PROJECT_ROOT_DIR / "frontend"
-print(f"app dir: {APP_DIR}, project dir: {PROJECT_ROOT_DIR}, fronted: {FRONTEND_DIR}")
+PROJECT_ROOT_DIR = APP_DIR.parent.parent.parent # Path to project root (e.g., kiwi/)
+FRONTEND_DIR = PROJECT_ROOT_DIR / "frontend" / "src"
+print(f"app dir: {APP_DIR}, project dir: {PROJECT_ROOT_DIR}, frontend: {FRONTEND_DIR}")
 
 app = FastAPI(
     title="Agent API",

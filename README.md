@@ -1,10 +1,10 @@
-# LangGraph ReAct Agent Template
+# Kiwi SQL Generation Project
 
 [![CI](https://github.com/langchain-ai/react-agent/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/langchain-ai/react-agent/actions/workflows/unit-tests.yml)
 [![Integration Tests](https://github.com/langchain-ai/react-agent/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/langchain-ai/react-agent/actions/workflows/integration-tests.yml)
 [![Open in - LangGraph Studio](https://img.shields.io/badge/Open_in-LangGraph_Studio-00324d.svg?logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4NS4zMzMiIGhlaWdodD0iODUuMzMzIiB2ZXJzaW9uPSIxLjAiIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHBhdGggZD0iTTEzIDcuOGMtNi4zIDMuMS03LjEgNi4zLTYuOCAyNS43LjQgMjQuNi4zIDI0LjUgMjUuOSAyNC41QzU3LjUgNTggNTggNTcuNSA1OCAzMi4zIDU4IDcuMyA1Ni43IDYgMzIgNmMtMTIuOCAwLTE2LjEuMy0xOSAxLjhtMzcuNiAxNi42YzIuOCAyLjggMy40IDQuMiAzLjQgNy42cy0uNiA0LjgtMy40IDcuNkw0Ny4yIDQzSDE2LjhsLTMuNC0zLjRjLTQuOC00LjgtNC44LTEwLjQgMC0xNS4ybDMuNC0zLjRoMzAuNHoiLz48cGF0aCBkPSJNMTguOSAyNS42Yy0xLjEgMS4zLTEgMS43LjQgMi41LjkuNiAxLjcgMS44IDEuNyAyLjcgMCAxIC43IDIuOCAxLjYgNC4xIDEuNCAxLjkgMS40IDIuNS4zIDMuMi0xIC42LS42LjkgMS40LjkgMS41IDAgMi43LS41IDIuNy0xIDAtLjYgMS4xLS44IDIuNi0uNGwyLjYuNy0xLjgtMi45Yy01LjktOS4zLTkuNC0xMi4zLTExLjUtOS44TTM5IDI2YzAgMS4xLS45IDIuNS0yIDMuMi0yLjQgMS41LTIuNiAzLjQtLjUgNC4yLjguMyAyIDEuNyAyLjUgMy4xLjYgMS41IDEuNCAyLjMgMiAyIDEuNS0uOSAxLjItMy41LS40LTMuNS0yLjEgMC0yLjgtMi44LS44LTMuMyAxLjYtLjQgMS42LS41IDAtLjYtMS4xLS4xLTEuNS0uNi0xLjItMS42LjctMS43IDMuMy0yLjEgMy41LS41LjEuNS4yIDEuNi4zIDIuMiAwIC43LjkgMS40IDEuOSAxLjYgMi4xLjQgMi4zLTIuMy4yLTMuMi0uOC0uMy0yLTEuNy0yLjUtMy4xLTEuMS0zLTMtMy4zLTMtLjUiLz48L3N2Zz4=)](https://langgraph-studio.vercel.app/templates/open?githubUrl=https://github.com/langchain-ai/react-agent)
 
-This template showcases a [ReAct agent](https://arxiv.org/abs/2210.03629) implemented using [LangGraph](https://github.com/langchain-ai/langgraph), designed for [LangGraph Studio](https://github.com/langchain-ai/langgraph-studio). ReAct agents are uncomplicated, prototypical agents that can be flexibly extended to many tools.
+Kiwi is an intelligent SQL generation project that combines [ReAct agents](https://arxiv.org/abs/2210.03629) with [LangGraph](https://github.com/langchain-ai/langgraph) to provide natural language to SQL conversion capabilities. The project features a modern React frontend and Flask/FastAPI backend integration.
 
 ![Graph view in LangGraph studio UI](./static/studio_ui.png)
 
@@ -24,17 +24,120 @@ By default, it's set up with a basic set of tools, but can be easily extended wi
 
 ## Getting Started
 
-Assuming you have already [installed LangGraph Studio](https://github.com/langchain-ai/langgraph-studio?tab=readme-ov-file#download), to set up:
+### Quick Setup
 
-1. Create a `.env` file.
+1. **Clone and setup environment:**
+   ```bash
+   git clone https://github.com/carmhuo/kiwi.git
+   cd kiwi
+   cp .env.example .env
+   ```
 
+2. **Configure API keys:**
+   Edit the `.env` file with your actual API keys:
+   ```bash
+   # Required: ModelScope API Key (recommended)
+   MODELSCOPE_API_KEY=your-modelscope-api-key-here
+   
+   # Alternative: OpenAI API Key
+   OPENAI_API_KEY=your-openai-api-key-here
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install -e .
+   # Or with all optional dependencies:
+   pip install -e .[all]
+   ```
+
+4. **Test your configuration:**
+   ```bash
+   # Quick test
+   python scripts/test_env_config.py
+   
+   # Comprehensive tests (requires pytest)
+   pip install pytest
+   python scripts/run_tests.py
+   ```
+
+5. **Run the application:**
+   ```bash
+   python src/kiwi/kiwi_app.py
+   ```
+
+### Environment Variables
+
+⚠️ **Important**: This project now uses environment variables for API keys instead of hardcoded values for security.
+
+**Required Environment Variables:**
+- `MODELSCOPE_API_KEY`: Your ModelScope API key (primary option)
+- `OPENAI_API_KEY`: Your OpenAI API key (alternative option)
+
+**Optional Environment Variables:**
+- `MODELSCOPE_API_BASE`: API base URL (default: https://api-inference.modelscope.cn/v1/)
+- `MODELSCOPE_MODEL`: Model name (default: Qwen/Qwen2.5-32B-Instruct)
+
+For detailed setup instructions, see [docs/ENVIRONMENT_SETUP.md](./docs/ENVIRONMENT_SETUP.md).
+
+## Testing
+
+The project includes a comprehensive test suite with 44 tests covering environment configuration, security compliance, and component integration:
+
+### Quick Test
 ```bash
-cp .env.example .env
+python scripts/test_env_config.py
 ```
 
-2. Define required API keys in your `.env` file.
+### Comprehensive Test Suite
+```bash
+# Install test dependencies
+pip install pytest
 
-The primary [search tool](./src/react_agent/tools.py) [^1] used is [Tavily](https://tavily.com/). Create an API key [here](https://app.tavily.com/sign-in).
+# Run all tests (41 passed, 3 skipped)
+python scripts/run_tests.py --all
+
+# Run specific test categories
+python scripts/run_tests.py --environment   # Environment configuration tests (20 tests)
+python scripts/run_tests.py --security      # Security compliance tests (12 tests)
+python scripts/run_tests.py --integration   # Integration tests (12 tests)
+
+# Direct pytest usage
+pytest tests/ -v                    # All tests with verbose output
+pytest tests/test_security.py -v    # Security tests only
+```
+
+### Test Structure
+```
+tests/
+├── test_environment_config.py  # Environment variable and configuration tests
+├── test_integration.py         # Component integration and end-to-end tests  
+├── test_security.py           # Security compliance and vulnerability tests
+└── conftest.py                # Shared fixtures and test configuration
+```
+
+For detailed testing information, see [docs/TESTING_GUIDE.md](./docs/TESTING_GUIDE.md).
+
+## Project Structure
+
+The project follows a clean, modular architecture:
+
+```
+kiwi/
+├── docs/                    # Documentation files
+├── frontend/                # Frontend application (Vite + React)
+├── logs/                    # Application log files
+├── scripts/                 # Utility and test scripts
+├── src/kiwi/               # Main application source code
+│   ├── fastapi/            # FastAPI application components
+│   ├── flask_app/          # Flask application components
+│   ├── react_agent/        # LangGraph React agent
+│   ├── react_app/          # Flask React application
+│   └── ...                 # Core modules
+├── static/                 # Static assets
+└── tests/                  # Comprehensive test suite
+```
+
+For detailed structure information, see [docs/PROJECT_STRUCTURE.md](./docs/PROJECT_STRUCTURE.md).
 
 <!--
 Setup instruction auto-generated by `langgraph template lock`. DO NOT EDIT MANUALLY.
