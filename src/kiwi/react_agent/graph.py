@@ -4,7 +4,8 @@ Works with a chat model with tool calling support.
 """
 
 from datetime import UTC, datetime
-from typing import Dict, List, Literal, cast
+from typing import Dict, List, Literal, cast, Optional
+from functools import lru_cache
 
 from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph
@@ -19,12 +20,38 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)  # load environment variables from .env
 
-# Define the function that calls the model
-config = Configuration.from_context()
-db = from_duckdb(config.database_path, config.read_only)
-llm = load_chat_model(config.model)
-tools = build_tool_system(db, llm, config)
-print(f"{db.dialect}: {db.get_usable_table_names()}")
+# Global variables for lazy initialization
+_db_instance = None
+_llm_instance = None
+_tools_instance = None
+_graph_instance = None
+
+@lru_cache(maxsize=1)
+def get_database_connection(database_path: str, read_only: bool = True):
+    """Get database connection with caching to avoid multiple connections."""
+    return from_duckdb(database_path, read_only)
+
+@lru_cache(maxsize=1) 
+def get_llm_instance(model: str):
+    """Get LLM instance with caching."""
+    return load_chat_model(model)
+
+def get_tools(config: Optional[Configuration] = None):
+    """Get tools with lazy initialization."""
+    global _tools_instance
+    
+    if _tools_instance is None:
+        if config is None:
+            config = Configuration.from_context()
+        
+        db = get_database_connection(config.database_path, config.read_only)
+        llm = get_llm_instance(config.model)
+        _tools_instance = build_tool_system(db, llm, config)
+        
+        # Only print database info when tools are first initialized
+        print(f"{db.dialect}: {db.get_usable_table_names()}")
+    
+    return _tools_instance
 
 async def call_model(state: State) -> Dict[str, List[AIMessage]]:
     """Call the LLM powering our "agent".
@@ -40,8 +67,12 @@ async def call_model(state: State) -> Dict[str, List[AIMessage]]:
     """
     config = Configuration.from_context()
 
+    # Get tools and database connection using lazy initialization
+    tools = get_tools(config)
+    db = get_database_connection(config.database_path, config.read_only)
+
     # Initialize the model with tool binding. Change the model or add more tools here.
-    model = load_chat_model(config.model).bind_tools(tools)
+    model = get_llm_instance(config.model).bind_tools(tools)
 
     # Format the system prompt. Customize this to change the agent's behavior.
     system_message = config.system_prompt.format(
@@ -74,18 +105,6 @@ async def call_model(state: State) -> Dict[str, List[AIMessage]]:
     return {"messages": [response]}
 
 
-# Define a new graph
-builder = StateGraph(State, input=InputState, config_schema=Configuration)
-
-# Define the two nodes we will cycle between
-builder.add_node(call_model)
-builder.add_node("tools", ToolNode(tools))
-
-# Set the entrypoint as `call_model`
-# This means that this node is the first one called
-builder.add_edge("__start__", "call_model")
-
-
 def route_model_output(state: State) -> Literal["__end__", "tools"]:
     """Determine the next node based on the model's output.
 
@@ -109,17 +128,115 @@ def route_model_output(state: State) -> Literal["__end__", "tools"]:
     return "tools"
 
 
-# Add a conditional edge to determine the next step after `call_model`
-builder.add_conditional_edges(
-    "call_model",
-    # After call_model finishes running, the next node(s) are scheduled
-    # based on the output from route_model_output
-    route_model_output,
-)
+def create_graph(config: Optional[Configuration] = None):
+    """Create and compile the ReAct agent graph with lazy initialization.
+    
+    Args:
+        config: Optional configuration. If None, will use Configuration.from_context()
+        
+    Returns:
+        Compiled LangGraph instance
+    """
+    if config is None:
+        config = Configuration.from_context()
+    
+    # Get tools using lazy initialization
+    tools = get_tools(config)
+    
+    # Define a new graph
+    builder = StateGraph(State, input=InputState, config_schema=Configuration)
 
-# Add a normal edge from `tools` to `call_model`
-# This creates a cycle: after using tools, we always return to the model
-builder.add_edge("tools", "call_model")
+    # Define the two nodes we will cycle between
+    builder.add_node(call_model)
+    builder.add_node("tools", ToolNode(tools))
 
-# Compile the builder into an executable graph
-graph = builder.compile(name="ReAct Agent")
+    # Set the entrypoint as `call_model`
+    # This means that this node is the first one called
+    builder.add_edge("__start__", "call_model")
+
+    # Add a conditional edge to determine the next step after `call_model`
+    builder.add_conditional_edges(
+        "call_model",
+        # After call_model finishes running, the next node(s) are scheduled
+        # based on the output from route_model_output
+        route_model_output,
+    )
+
+    # Add a normal edge from `tools` to `call_model`
+    # This creates a cycle: after using tools, we always return to the model
+    builder.add_edge("tools", "call_model")
+
+    # Compile the builder into an executable graph
+    return builder.compile(name="ReAct Agent")
+
+
+def get_graph(config: Optional[Configuration] = None):
+    """Get the compiled graph with lazy initialization and caching."""
+    global _graph_instance
+    
+    if _graph_instance is None:
+        _graph_instance = create_graph(config)
+    
+    return _graph_instance
+
+
+# For backward compatibility, create a lazy graph attribute
+class _LazyGraph:
+    """Lazy graph loader for backward compatibility."""
+    def __init__(self):
+        self._graph = None
+        self._initialized = False
+    
+    def __getattr__(self, name):
+        # Don't trigger initialization for private attributes or common inspection attributes
+        if name.startswith('_') or name in ('__class__', '__dict__', '__module__'):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        
+        if self._graph is None:
+            self._graph = get_graph()
+            self._initialized = True
+        return getattr(self._graph, name)
+    
+    def __call__(self, *args, **kwargs):
+        if self._graph is None:
+            self._graph = get_graph()
+            self._initialized = True
+        return self._graph(*args, **kwargs)
+    
+    def __repr__(self):
+        if self._graph is None:
+            return f"<{self.__class__.__name__}: Not initialized>"
+        return repr(self._graph)
+
+# Create lazy graph instance for backward compatibility
+graph = _LazyGraph()
+
+
+def reset_instances():
+    """Reset all cached instances. Useful for testing or configuration changes."""
+    global _db_instance, _llm_instance, _tools_instance, _graph_instance
+    
+    _db_instance = None
+    _llm_instance = None
+    _tools_instance = None
+    _graph_instance = None
+    
+    # Clear LRU caches
+    get_database_connection.cache_clear()
+    get_llm_instance.cache_clear()
+    
+    # Reset lazy graph
+    if hasattr(graph, '_graph'):
+        graph._graph = None
+
+
+# Export main functions for external use
+__all__ = [
+    'get_graph',
+    'create_graph', 
+    'get_tools',
+    'get_database_connection',
+    'get_llm_instance',
+    'reset_instances',
+    'graph'  # For backward compatibility
+]
