@@ -1,0 +1,45 @@
+{
+  "name": "kiwi-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Kiwi SQL Generation Project",
+  "main": "src/assets/js/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
+    "format": "prettier --write src/**/*.{js,jsx,ts,tsx,css,html}",
+    "clean": "rm -rf dist",
+    "watch": "vite build --watch"
+  },
+  "keywords": [
+    "sql",
+    "ai",
+    "chat",
+    "frontend",
+    "kiwi"
+  ],
+  "author": "Kiwi Team",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "@vitejs/plugin-legacy": "^5.0.0",
+    "autoprefixer": "^10.0.0",
+    "postcss": "^8.0.0",
+    "sass": "^1.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chart.js": "^4.4.0",
+    "highlight.js": "^11.9.0",
+    "marked": "^11.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}

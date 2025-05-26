@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiwi AI SQL Assistant</title>
+    <meta name="description" content="AI-powered SQL generation and database query assistant">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="../../assets/css/variables.scss" as="style">
+    <link rel="preload" href="../../assets/css/base.css" as="style">
+    <link rel="preload" href="../../assets/css/chat.css" as="style">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/chat.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="../../assets/images/favicon.svg">
+    <link rel="icon" type="image/png" href="../../assets/images/favicon.png">
+</head>
+<body data-page="chat" data-backend="auto">
+    <div class="chat-container" id="chatContainer">
+        <!-- Chat Header -->
+        <header class="chat-header">
+            <h1>🥝 Kiwi AI SQL Assistant</h1>
+            <p>Generate SQL queries with natural language</p>
+        </header>
+
+        <!-- Messages Container -->
+        <main class="chat-messages" id="messages" role="main" aria-live="polite" aria-label="Chat messages">
+            <!-- Messages will be dynamically added here -->
+        </main>
+
+        <!-- Loading Indicator -->
+        <div class="loading-indicator" id="loadingIndicator" style="display: none;" aria-hidden="true">
+            <span>AI is thinking</span>
+            <div class="loading-dots">
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <footer class="chat-input-area">
+            <div class="chat-input-container">
+                <label for="userInput" class="sr-only">Enter your message</label>
+                <textarea 
+                    id="userInput" 
+                    class="chat-input" 
+                    placeholder="Ask me to generate SQL queries, explain database concepts, or help with data analysis..."
+                    rows="1"
+                    maxlength="2000"
+                    aria-label="Message input"
+                ></textarea>
+                <button 
+                    id="sendButton" 
+                    class="chat-send-button" 
+                    type="button"
+                    aria-label="Send message"
+                    title="Send message (Enter)"
+                >
+                    <span class="button-text">Send</span>
+                    <svg class="button-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="quick-actions" id="quickActions">
+                <button class="quick-action-btn" data-action="example-query">
+                    📊 Example Query
+                </button>
+                <button class="quick-action-btn" data-action="clear-chat">
+                    🗑️ Clear Chat
+                </button>
+                <button class="quick-action-btn" data-action="export-chat">
+                    💾 Export Chat
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="modal" id="errorModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Connection Error</h3>
+                <button class="modal-close" onclick="this.parentNode.parentNode.parentNode.style.display='none'">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage">Unable to connect to the server. Please check your connection and try again.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="location.reload()">Retry</button>
+                <button class="btn btn-secondary" onclick="this.parentNode.parentNode.parentNode.style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen reader only content -->
+    <div class="sr-only">
+        <div id="chat-status" aria-live="polite" aria-atomic="true"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="../../assets/js/main.js"></script>
+    
+    <!-- Inline script for immediate functionality -->
+    <script>
+        // Immediate setup for better UX
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up quick actions
+            const quickActions = document.getElementById('quickActions');
+            if (quickActions) {
+                quickActions.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('quick-action-btn')) {
+                        const action = e.target.dataset.action;
+                        handleQuickAction(action);
+                    }
+                });
+            }
+
+            // Auto-focus input
+            const userInput = document.getElementById('userInput');
+            if (userInput) {
+                userInput.focus();
+            }
+
+            // Check server connectivity
+            checkServerHealth();
+        });
+
+        function handleQuickAction(action) {
+            const userInput = document.getElementById('userInput');
+            
+            switch (action) {
+                case 'example-query':
+                    userInput.value = "Show me all customers who made purchases in the last 30 days";
+                    userInput.focus();
+                    break;
+                case 'clear-chat':
+                    if (window.KiwiApp && window.KiwiApp.ChatInterface) {
+                        // Will be handled by the main chat interface
+                        const event = new CustomEvent('clearChat');
+                        document.dispatchEvent(event);
+                    }
+                    break;
+                case 'export-chat':
+                    if (window.KiwiApp && window.KiwiApp.ChatInterface) {
+                        const event = new CustomEvent('exportChat');
+                        document.dispatchEvent(event);
+                    }
+                    break;
+            }
+        }
+
+        async function checkServerHealth() {
+            try {
+                const response = await fetch('/api/health', { 
+                    method: 'GET',
+                    timeout: 5000 
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+                
+                // Server is healthy
+                document.body.classList.add('server-connected');
+            } catch (error) {
+                console.warn('Server health check failed:', error);
+                document.body.classList.add('server-disconnected');
+                
+                // Show connection warning after a delay
+                setTimeout(() => {
+                    if (document.body.classList.contains('server-disconnected')) {
+                        showConnectionWarning();
+                    }
+                }, 3000);
+            }
+        }
+
+        function showConnectionWarning() {
+            const modal = document.getElementById('errorModal');
+            const message = document.getElementById('errorMessage');
+            
+            message.textContent = 'Unable to connect to the AI server. Some features may not work properly.';
+            modal.style.display = 'flex';
+        }
+    </script>
+
+    <!-- Additional styles for modal and quick actions -->
+    <style>
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            background-color: var(--light-gray);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-md);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .quick-action-btn:hover {
+            background-color: var(--primary-light);
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .modal-content {
+            background-color: var(--white);
+            border-radius: var(--border-radius-lg);
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color var(--transition-fast);
+        }
+
+        .modal-close:hover {
+            background-color: var(--light-gray);
+        }
+
+        .modal-body {
+            padding: var(--spacing-lg);
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: var(--spacing-sm);
+            justify-content: flex-end;
+            padding: var(--spacing-lg);
+            border-top: 1px solid var(--border-light);
+        }
+
+        .btn {
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border: none;
+            border-radius: var(--border-radius-md);
+            cursor: pointer;
+            font-weight: var(--font-weight-medium);
+            transition: all var(--transition-fast);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--gray);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--dark-gray);
+            color: var(--white);
+        }
+
+        .button-icon {
+            margin-left: var(--spacing-xs);
+        }
+
+        .server-disconnected .chat-send-button {
+            background-color: var(--warning-color);
+        }
+
+        .server-connected .chat-send-button {
+            background-color: var(--primary-color);
+        }
+    </style>
+</body>
+</html>
