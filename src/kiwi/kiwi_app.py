@@ -1,11 +1,27 @@
+import os
 from kiwi.flask_app import VannaFlaskApp
 from kiwi import ChromaDB_VectorStore
 from kiwi import OpenAI_Chat
 from openai import OpenAI
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv is optional
+
+# Get API key from environment variable
+api_key = os.getenv('MODELSCOPE_API_KEY')
+if not api_key:
+    raise ValueError(
+        "MODELSCOPE_API_KEY environment variable is required. "
+        "Please set it with: export MODELSCOPE_API_KEY='your-api-key'"
+    )
+
 client = OpenAI(
     base_url='https://api-inference.modelscope.cn/v1/',
-    api_key='9d431c1c-2acd-4dd0-b95a-76affce19b3b', # ModelScope Token
+    api_key=api_key,  # ModelScope Token from environment
 )
 
 class MyVanna(ChromaDB_VectorStore, OpenAI_Chat):
