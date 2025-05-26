@@ -8,6 +8,7 @@ from kiwi import ChromaDB_VectorStore
 from kiwi import OpenAI_Chat
 from openai import OpenAI
 
+
 def find_free_port():
     """Find an available port"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -16,9 +17,10 @@ def find_free_port():
         port = s.getsockname()[1]
     return port
 
+
 def main():
     print("🚀 Starting Kiwi Application...")
-    
+
     # Load environment variables from .env file
     try:
         from dotenv import load_dotenv
@@ -52,28 +54,29 @@ def main():
         formatted_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         initial_prompt = """
-            You are a {dialect} expert.
-            Please help to generate a syntactically correct SQL query to answer the question. 
-            Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
+        You are a {dialect} expert.
+        Please help to generate a syntactically correct SQL query to answer the question. 
+        Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most {top_k} results.
 
-            Your response should ONLY be based on the given context and follow the response guidelines and format instructions.
+        Your response should ONLY be based on the given context and follow the response guidelines and format instructions.
 
-            The current system time is {current_time}.
+        The current system time is {current_time}.
         """.format(
             dialect='duckdb',
             top_k=1000,
             current_time=formatted_time,
         )
+
         vn = MyVanna(config={
-            'model': 'Qwen/Qwen2.5-32B-Instruct', 
-            'path': '/mnt/workspace/data/chroma_db', 
-            'client': 'persistent', 
+            'model': 'Qwen/Qwen2.5-32B-Instruct',
+            'path': '/mnt/workspace/data/chromadb/gb_vhcl_signal_db',
+            'client': 'persistent',
             'n_results_sql': 5,
             'initial_prompt': initial_prompt
         })
 
         # Connect to database
-        db_path = '/mnt/workspace/data/duckdb/tpch_sf1.db'
+        db_path = '/mnt/workspace/data/duckdb/gb_vhcl.db'
         if os.path.exists(db_path):
             print(f"📊 Connecting to database: {db_path}")
             vn.connect_to_duckdb(db_path, read_only=True)
@@ -95,7 +98,7 @@ def main():
         print(f"🎯 Starting server on port {port}...")
         print(f"🌍 Access the application at: http://localhost:{port}")
         print("🔄 Press Ctrl+C to stop the server")
-        
+
         app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)
 
     except Exception as e:
@@ -105,6 +108,7 @@ def main():
         print("   2. Verify internet connection")
         print("   3. Check if all dependencies are installed")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
