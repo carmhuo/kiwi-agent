@@ -121,6 +121,7 @@ class KiwiFlaskApp(VannaFlaskApp):
             host=host, 
             port=port, 
             debug=debug,
+            use_reloader=False,
             **kwargs
         )
 
@@ -165,7 +166,7 @@ def create_simple_app(vn, host="localhost", port=8084, debug=True):
         use_modern_frontend=True
     )
     
-    app.run(host=host, port=port, debug=debug)
+    app.run(host=host, port=port, debug=debug, use_reloader=False)
     return app
 
 

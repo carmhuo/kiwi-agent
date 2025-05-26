@@ -77,7 +77,7 @@ def main():
         print(f"🌍 Access the application at: http://localhost:{port}")
         print("🔄 Press Ctrl+C to stop the server")
         
-        app.run(host='0.0.0.0', port=port, debug=True)
+        app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)
 
     except Exception as e:
         print(f"❌ Error starting application: {e}")
