@@ -9,12 +9,17 @@ from kiwi import OpenAI_Chat
 from openai import OpenAI
 
 
-def find_free_port():
+def find_free_port(default_port=2025):
     """Find an available port"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', 0))
-        s.listen(1)
-        port = s.getsockname()[1]
+        try:
+            s.bind(('', default_port))
+            s.listen(1)
+            return default_port
+        except socket.error:
+            s.bind(('', 0))
+            s.listen(1)
+            return s.getsockname()[1]
     return port
 
 
@@ -66,10 +71,11 @@ def main():
             top_k=1000,
             current_time=formatted_time,
         )
-
+        model = os.getenv('MODELSCOPE_DEEPSEEK_MODEL')
+        chroma_path = '/mnt/workspace/data/chromadb/gb_vhcl_signal_db'
         vn = MyVanna(config={
-            'model': 'Qwen/Qwen2.5-32B-Instruct',
-            'path': '/mnt/workspace/data/chromadb/gb_vhcl_signal_db',
+            'model': model,
+            'path': chroma_path,
             'client': 'persistent',
             'n_results_sql': 5,
             'initial_prompt': initial_prompt
