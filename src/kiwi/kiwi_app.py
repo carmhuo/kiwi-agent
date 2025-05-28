@@ -94,9 +94,9 @@ def main():
         app = VannaFlaskApp(
             vn, 
             logo=None, 
-            title="Welcome to Carmhuo Kiwi SQL Assistant", 
+            title="Welcome to Kiwi SQL Assistant", 
             allow_llm_to_see_data=True, 
-            debug=True
+            debug=False
         )
 
         # Find available port
@@ -105,7 +105,7 @@ def main():
         print(f"🌍 Access the application at: http://localhost:{port}")
         print("🔄 Press Ctrl+C to stop the server")
 
-        app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
     except Exception as e:
         print(f"❌ Error starting application: {e}")
