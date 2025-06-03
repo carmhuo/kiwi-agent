@@ -12,6 +12,7 @@ import requests
 from flasgger import Swagger
 from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_sock import Sock
+from langchain_core.messages import BaseMessage
 
 from kiwi.base import VannaBase
 from kiwi.flask_app.assets import css_content, html_content, js_content
@@ -190,8 +191,9 @@ class VannaFlaskAPI:
 
         if self.debug:
             def log(message, title="Info"):
+                if (isinstance(message, list) and len(message) > 0 and isinstance(message[0], BaseMessage)):
+                    message = [dict(m) for m in message]
                 [ws.send(json.dumps({'message': message, 'title': title})) for ws in self.ws_clients]
-
             self.vn.log = log
 
         @self.flask_app.route("/api/v0/get_config", methods=["GET"])
