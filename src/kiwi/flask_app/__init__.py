@@ -14,7 +14,7 @@ from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_sock import Sock
 from langchain_core.messages import BaseMessage
 
-from kiwi.base import VannaBase
+from kiwi.core import KiwiBase
 from kiwi.flask_app.assets import css_content, html_content, js_content
 from kiwi.flask_app.auth import AuthInterface, NoAuth
 
@@ -142,7 +142,7 @@ class VannaFlaskAPI:
 
     def __init__(
         self,
-        vn: VannaBase,
+        vn: KiwiBase,
         cache: Cache = MemoryCache(),
         auth: AuthInterface = NoAuth(),
         debug=True,
@@ -1170,7 +1170,7 @@ class VannaFlaskAPI:
 class VannaFlaskApp(VannaFlaskAPI):
     def __init__(
         self,
-        vn: VannaBase,
+        vn: KiwiBase,
         cache: Cache = MemoryCache(),
         auth: AuthInterface = NoAuth(),
         debug=True,

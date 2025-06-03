@@ -3,9 +3,9 @@ from typing import Union, Tuple
 import pandas as pd
 import plotly.graph_objs
 from kiwi.flask_app import VannaFlaskApp
-from kiwi import ChromaDB_VectorStore
-from kiwi import OpenAI_Chat
-from openai import OpenAI
+from kiwi.core import ChromaDB_VectorStore
+from kiwi.core import LangChain_Chat
+from kiwi.utils import find_free_port, load_chat_model
 try:
     from kiwi.react_agent.graph import graph
 except ImportError:
@@ -18,23 +18,12 @@ try:
 except ImportError:
     pass  # dotenv is optional
 
-# Get API key from environment variable
-api_key = os.getenv('MODELSCOPE_API_KEY')
-if not api_key:
-    raise ValueError(
-        "MODELSCOPE_API_KEY environment variable is required. "
-        "Please set it with: export MODELSCOPE_API_KEY='your-api-key'"
-    )
 
-client = OpenAI(
-    base_url='https://api-inference.modelscope.cn/v1/',
-    api_key=api_key,  # ModelScope Token from environment
-)
-
-class MyKiwi(ChromaDB_VectorStore, OpenAI_Chat):
-    def __init__(self, config=None):
+class MyKiwi(ChromaDB_VectorStore, LangChain_Chat):
+    def __init__(self, chat_model=None, config=None):
         ChromaDB_VectorStore.__init__(self, config=config)
-        OpenAI_Chat.__init__(self, client=client, config=config)
+        LangChain_Chat.__init__(self, chat_model=chat_model, config=config)
+
 
     def ask_with_graph(
         self,
@@ -89,10 +78,9 @@ class MyKiwi(ChromaDB_VectorStore, OpenAI_Chat):
     
 def main():
     print("🚀 Starting Kiwi Graph Application...")
-    
+    model = os.getenv('MODELSCOPE_DEEPSEEK_MODEL')
     # Initialize Vanna with configuration
-    vn = MyKiwi(config={
-        'model': 'Qwen/Qwen2.5-32B-Instruct', 
+    kiwi = MyKiwi(chat_model=load_chat_model(model), config={
         'path': '/mnt/workspace/data/chromadb/tpch_db', 
         'client': 'persistent', 
         'n_results_sql': 5
@@ -102,14 +90,14 @@ def main():
     db_path = '/mnt/workspace/data/duckdb/tpch_sf1.db'
     if os.path.exists(db_path):
         print(f"📊 Connecting to database: {db_path}")
-        vn.connect_to_duckdb(db_path, read_only=True)
+        kiwi.connect_to_duckdb(db_path, read_only=True)
     else:
         print(f"⚠️  Database not found: {db_path}")
         print("💡 Application will run but database features may not work.")
 
     # Create Flask app with LangGraph integration
     app = VannaFlaskApp(
-        vn, 
+        kiwi, 
         logo=None, 
         title="Welcome to Kiwi", 
         allow_llm_to_see_data=True, 
