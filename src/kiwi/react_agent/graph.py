@@ -6,6 +6,7 @@ Works with a chat model with tool calling support.
 from datetime import UTC, datetime
 from typing import Dict, List, Literal, cast, Optional
 from functools import lru_cache
+import logging
 
 from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph
@@ -26,10 +27,29 @@ _llm_instance = None
 _tools_instance = None
 _graph_instance = None
 
+logger = logging.getLogger(__name__)
+
 @lru_cache(maxsize=1)
 def get_database_connection(database_path: str, read_only: bool = True):
-    """Get database connection with caching to avoid multiple connections."""
-    return from_duckdb(database_path, read_only)
+    """Get a cached DuckDB connection to avoid multiple connections.
+    
+    Args:
+        database_path: Path to the DuckDB database file.
+        read_only: Whether to open the database in read-only mode.
+        
+    Returns:
+        A DuckDB connection object (cached for subsequent calls).
+        
+    Raises:
+        RuntimeError: If database connection fails.
+    """
+    try:
+        db = from_duckdb(database_path, read_only)
+        logger.debug(f"Initialized DuckDB connection: {database_path} (read_only={read_only})")
+        return db
+    except Exception as e:
+        logger.error(f"Failed to connect to DuckDB: {e}")
+        raise RuntimeError(f"Failed to connect to DuckDB: {e}") from e
 
 @lru_cache(maxsize=1) 
 def get_llm_instance(model: str):

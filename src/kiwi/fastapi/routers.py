@@ -13,11 +13,11 @@ router = APIRouter(
     tags=["Agent"] # For OpenAPI documentation
 )
 
-async def event_stream_generator(initial_graph_input: dict):
+async def event_stream_generator(initial_graph_input: dict, config=None):
     # stream_mode="values" makes event_chunk the direct output of a node
     # stream_mode="updates" (default) gives dict like {"node_name": output}
     # Let's use "updates" as it's more common to check node names
-    async for event_chunk_update in graph.astream(initial_graph_input): # Default stream_mode="updates"
+    async for event_chunk_update in graph.astream(initial_graph_input, config, stream_mode="updates"):
         # event_chunk_update will be like {"node_name": output_value}
         for node_name, output_value in event_chunk_update.items():
             if node_name == "call_model" and isinstance(output_value, dict) and "messages" in output_value:
@@ -70,8 +70,14 @@ async def astream_agent_endpoint(payload: ChatRequest):
             raise HTTPException(status_code=400, detail="No valid user messages provided")
 
         initial_graph_input = {"messages": input_messages}
+        # https://python.langchain.com/docs/concepts/runnables/#runnableconfig
+        config = {
+            'run_name': 'kiwi_agent', 
+            'tags': ['kiwi', 'sql agent', 'graph'], 
+            "configurable": {"model": "Qwen/Qwen2.5-32B-Instruct"}
+        }
         
-        return StreamingResponse(event_stream_generator(initial_graph_input), media_type="text/event-stream")
+        return StreamingResponse(event_stream_generator(initial_graph_input, config), media_type="text/event-stream")
 
     except HTTPException as http_exc: # Re-raise HTTPException
         raise http_exc
