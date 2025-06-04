@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="./assets/images/favicon.svg" type="image/x-icon">
     <title>Kiwi Agent Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary-color: #4f46e5;
@@ -13,11 +14,13 @@
             --card-bg: #ffffff;
             --text-color: #1e293b;
             --border-color: #e2e8f0;
-            --sidebar-width: 300px;
+            --sidebar-width: 320px;
             --success-color: #10b981;
             --error-color: #ef4444;
             --warning-color: #f59e0b;
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --user-bubble: #4f46e5;
+            --assistant-bubble: #eef2ff;
         }
 
         [data-theme="dark"] {
@@ -25,6 +28,8 @@
             --card-bg: #1e293b;
             --text-color: #f1f5f9;
             --border-color: #334155;
+            --user-bubble: #6366f1;
+            --assistant-bubble: #334155;
         }
 
         * {
@@ -62,16 +67,18 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .sidebar h2 {
             font-size: 1.25rem;
             font-weight: 600;
-            margin-bottom: 20px;
         }
 
         .config-group {
             margin-bottom: 25px;
+            position: relative;
         }
 
         .config-group label {
@@ -85,9 +92,9 @@
         .config-group textarea,
         .config-group select {
             width: 100%;
-            padding: 10px 12px;
+            padding: 12px 16px;
             border: 1px solid var(--border-color);
-            border-radius: 6px;
+            border-radius: 8px;
             background-color: var(--card-bg);
             color: var(--text-color);
             font-size: 0.875rem;
@@ -103,7 +110,7 @@
         }
 
         .config-group textarea {
-            min-height: 100px;
+            min-height: 120px;
             resize: vertical;
         }
 
@@ -122,8 +129,8 @@
         .toggle-switch {
             position: relative;
             display: inline-block;
-            width: 40px;
-            height: 22px;
+            width: 44px;
+            height: 24px;
             margin-right: 10px;
         }
 
@@ -148,8 +155,8 @@
         .toggle-slider:before {
             position: absolute;
             content: "";
-            height: 16px;
-            width: 16px;
+            height: 18px;
+            width: 18px;
             left: 3px;
             bottom: 3px;
             background-color: white;
@@ -162,7 +169,7 @@
         }
 
         input:checked + .toggle-slider:before {
-            transform: translateX(18px);
+            transform: translateX(20px);
         }
 
         .actions {
@@ -172,13 +179,16 @@
         }
 
         button {
-            padding: 10px 16px;
-            border-radius: 6px;
+            padding: 12px 20px;
+            border-radius: 8px;
             border: none;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
             font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         button.primary {
@@ -238,6 +248,17 @@
             cursor: pointer;
             color: var(--text-color);
             font-size: 1.25rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(148, 163, 184, 0.1);
         }
 
         .mobile-menu-btn {
@@ -280,14 +301,15 @@
         }
 
         .message-avatar {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
             font-weight: 600;
+            font-size: 18px;
         }
 
         .user-avatar {
@@ -304,23 +326,25 @@
             display: flex;
             flex-direction: column;
             gap: 5px;
+            max-width: calc(100% - 60px);
         }
 
         .message-bubble {
-            padding: 12px 16px;
+            padding: 16px;
             border-radius: 18px;
             max-width: 100%;
             word-wrap: break-word;
+            position: relative;
         }
 
         .user-bubble {
-            background-color: var(--primary-color);
+            background-color: var(--user-bubble);
             color: white;
             border-bottom-right-radius: 4px;
         }
 
         .assistant-bubble {
-            background-color: var(--border-color);
+            background-color: var(--assistant-bubble);
             color: var(--text-color);
             border-bottom-left-radius: 4px;
         }
@@ -341,6 +365,34 @@
             font-weight: 500;
         }
 
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message:hover .message-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            color: var(--primary-color);
+            background-color: rgba(79, 70, 229, 0.1);
+        }
+
         #inputArea {
             display: flex;
             padding: 15px;
@@ -351,12 +403,16 @@
 
         #userInput {
             flex-grow: 1;
-            padding: 12px 16px;
+            padding: 14px 18px;
             border: 1px solid var(--border-color);
             border-radius: 24px;
             background-color: var(--card-bg);
             color: var(--text-color);
             font-size: 1rem;
+            resize: none;
+            height: 60px;
+            max-height: 120px;
+            overflow-y: auto;
         }
 
         #userInput:focus {
@@ -366,7 +422,7 @@
         }
 
         #sendButton {
-            padding: 12px 24px;
+            padding: 14px 24px;
             background-color: var(--primary-color);
             color: white;
             border: none;
@@ -376,6 +432,8 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            align-self: flex-end;
+            height: 48px;
         }
 
         #sendButton:hover {
@@ -426,11 +484,14 @@
             right: 20px;
             background-color: var(--success-color);
             color: white;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 8px;
             box-shadow: var(--shadow);
             z-index: 1000;
             animation: fadeInOut 3s forwards;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         @keyframes fadeInOut {
@@ -442,30 +503,45 @@
 
         .model-badge {
             display: inline-block;
-            padding: 3px 8px;
+            padding: 4px 10px;
             background-color: rgba(79, 70, 229, 0.1);
             color: var(--primary-color);
-            border-radius: 4px;
-            font-size: 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
             font-weight: 500;
             margin-top: 5px;
         }
 
-        @media (max-width: 768px) {
+        .retry-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
+
+        @media (max-width: 1024px) {
             .sidebar {
                 position: fixed;
                 left: 0;
                 top: 0;
                 height: 100vh;
                 transform: translateX(-100%);
+                z-index: 1000;
+                width: 90%;
+                max-width: 400px;
             }
 
             .sidebar.active {
                 transform: translateX(0);
+                box-shadow: 0 0 20px rgba(0,0,0,0.2);
             }
 
             .main-content {
                 max-width: 100%;
+                padding: 15px;
             }
 
             .mobile-menu-btn {
@@ -473,8 +549,48 @@
             }
 
             .message {
-                max-width: 85%;
+                max-width: 95%;
             }
+            
+            .header h1 {
+                font-size: 1.3rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .message-actions {
+                opacity: 1;
+            }
+            
+            #userInput {
+                height: 50px;
+                padding: 12px 16px;
+                font-size: 0.95rem;
+            }
+            
+            #sendButton {
+                padding: 12px 20px;
+                height: 44px;
+            }
+        }
+
+        .close-sidebar {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .close-sidebar:hover {
+            background-color: rgba(148, 163, 184, 0.1);
         }
     </style>
 </head>
@@ -528,8 +644,12 @@
         </div>
         
         <div class="actions">
-            <button class="secondary" id="resetConfig">恢复默认</button>
-            <button class="primary" id="saveConfig">保存配置</button>
+            <button class="secondary" id="resetConfig">
+                <i class="fas fa-undo"></i>恢复默认
+            </button>
+            <button class="primary" id="saveConfig">
+                <i class="fas fa-save"></i>保存配置
+            </button>
         </div>
     </div>
     
@@ -565,8 +685,10 @@
             </div>
             
             <div id="inputArea">
-                <input type="text" id="userInput" placeholder="输入消息...">
-                <button id="sendButton">发送</button>
+                <textarea id="userInput" placeholder="输入消息..."></textarea>
+                <button id="sendButton">
+                    <i class="fas fa-paper-plane"></i>发送
+                </button>
             </div>
         </div>
     </div>
@@ -596,7 +718,7 @@
         
         // 默认配置
         const DEFAULT_CONFIG = {
-            systemPrompt: '',
+            systemPrompt: '你是一个专业的AI助手，请用简洁明了的语言回答问题。',
             model: 'Qwen/Qwen2.5-32B-Instruct',
             maxSearchResults: 10,
             databasePath: '/mnt/workspace/data/duckdb/vitas.db',
@@ -607,11 +729,25 @@
         // 当前配置
         let currentConfig = {...DEFAULT_CONFIG};
         
+        // 聊天历史
+        let chatHistory = [];
+        let currentStream = null;
+        let lastMessageId = 0;
+        
         // 初始化
         function init() {
             loadConfig();
             setupEventListeners();
             updateModelBadge();
+            setupAutoResize();
+        }
+        
+        // 设置输入框自动调整高度
+        function setupAutoResize() {
+            userInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight > 120 ? 120 : this.scrollHeight) + 'px';
+            });
         }
         
         // 从localStorage加载配置
@@ -674,7 +810,7 @@
         function showSuccessMessage(message) {
             const successEl = document.createElement('div');
             successEl.className = 'success-message';
-            successEl.textContent = message;
+            successEl.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
             document.body.appendChild(successEl);
             
             setTimeout(() => {
@@ -721,7 +857,7 @@
             
             // 发送消息
             sendButton.addEventListener('click', sendMessage);
-            userInput.addEventListener('keypress', (e) => {
+            userInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
@@ -735,8 +871,10 @@
             if (!messageText) return;
             
             // 添加用户消息到UI
-            appendMessage(messageText, 'user');
+            const messageId = Date.now();
+            appendMessage(messageText, 'user', messageId);
             userInput.value = '';
+            userInput.style.height = '60px';
             sendButton.disabled = true;
             loadingIndicator.style.display = 'flex';
             
@@ -779,12 +917,19 @@
                 }
                 
                 // 创建助手消息容器
+                const assistantMessageId = Date.now();
                 const assistantMessageContainer = document.createElement('div');
                 assistantMessageContainer.className = 'message';
+                assistantMessageContainer.id = `msg-${assistantMessageId}`;
                 assistantMessageContainer.innerHTML = `
                     <div class="message-avatar assistant-avatar">K</div>
                     <div class="message-content">
-                        <div class="message-bubble assistant-bubble"></div>
+                        <div class="message-bubble assistant-bubble" id="bubble-${assistantMessageId}"></div>
+                        <div class="message-actions">
+                            <button class="action-btn retry-btn" title="重新生成" data-id="${assistantMessageId}">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        </div>
                         <div class="message-timestamp">${formatTime(new Date())}</div>
                     </div>
                 `;
@@ -793,12 +938,39 @@
                 messagesDiv.appendChild(assistantMessageContainer);
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 
+                // 添加重试按钮事件
+                const retryBtn = assistantMessageContainer.querySelector('.retry-btn');
+                retryBtn.addEventListener('click', () => retryMessage(assistantMessageId));
+                
+                // 添加到聊天历史
+                chatHistory.push({
+                    id: messageId,
+                    role: 'user',
+                    content: messageText,
+                    timestamp: new Date()
+                });
+                
+                const assistantMessage = {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: '',
+                    timestamp: new Date()
+                };
+                
+                chatHistory.push(assistantMessage);
+                lastMessageId = assistantMessageId;
+                
                 // 处理流式响应
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
                 
-                while (true) {
+                currentStream = {
+                    reader: reader,
+                    active: true
+                };
+                
+                while (currentStream.active) {
                     const { value, done } = await reader.read();
                     if (done) break;
                     
@@ -815,6 +987,12 @@
                                 const eventData = JSON.parse(jsonData);
                                 if (eventData.content) {
                                     messageBubble.textContent += eventData.content;
+                                    
+                                    // 更新聊天历史
+                                    const index = chatHistory.findIndex(msg => msg.id === assistantMessageId);
+                                    if (index !== -1) {
+                                        chatHistory[index].content = messageBubble.textContent;
+                                    }
                                 } else if (eventData.role === 'assistant' && eventData.tool_calls) {
                                     const toolNames = eventData.tool_calls.map(tc => tc.name).join(', ');
                                     const toolsEl = document.createElement('div');
@@ -835,30 +1013,226 @@
                 appendMessage(`请求错误: ${error.message}`, 'error');
                 loadingIndicator.style.display = 'none';
             } finally {
+                currentStream = null;
+                sendButton.disabled = false;
+            }
+        }
+        
+        // 重试消息
+        async function retryMessage(messageId) {
+            const messageIndex = chatHistory.findIndex(msg => msg.id === messageId);
+            if (messageIndex === -1 || messageIndex < 1) return;
+            
+            // 获取用户消息
+            const userMessage = chatHistory[messageIndex - 1];
+            
+            // 删除当前助手消息及之后的所有消息
+            const messagesToRemove = chatHistory.slice(messageIndex);
+            messagesToRemove.forEach(msg => {
+                const msgElement = document.getElementById(`msg-${msg.id}`);
+                if (msgElement) msgElement.remove();
+            });
+            
+            chatHistory = chatHistory.slice(0, messageIndex);
+            
+            // 显示重试指示器
+            const retryIndicator = document.createElement('span');
+            retryIndicator.className = 'retry-indicator';
+            retryIndicator.innerHTML = '<i class="fas fa-redo"></i> 重试中...';
+            const userMsgElement = document.getElementById(`msg-${userMessage.id}`);
+            if (userMsgElement) {
+                userMsgElement.querySelector('.message-content').appendChild(retryIndicator);
+            }
+            
+            // 禁用发送按钮
+            sendButton.disabled = true;
+            loadingIndicator.style.display = 'flex';
+            
+            try {
+                // 准备请求数据
+                const requestData = {
+                    messages: [{ role: 'user', content: userMessage.content }],
+                    config: {
+                        system_prompt: currentConfig.systemPrompt,
+                        model: currentConfig.model,
+                        max_search_results: currentConfig.maxSearchResults,
+                        database_path: currentConfig.databasePath,
+                        read_only: currentConfig.readOnly
+                    }
+                };
+                
+                // 发送请求
+                const response = await fetch('/api/astream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                loadingIndicator.style.display = 'none';
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ 
+                        error: "请求错误", 
+                        details: `状态码: ${response.status}`
+                    }));
+                    
+                    const errorMsg = errorData.error || '请求失败';
+                    const details = errorData.details || '';
+                    appendMessage(`错误: ${errorMsg}. ${details}`, 'error');
+                    sendButton.disabled = false;
+                    return;
+                }
+                
+                // 创建助手消息容器
+                const assistantMessageId = Date.now();
+                const assistantMessageContainer = document.createElement('div');
+                assistantMessageContainer.className = 'message';
+                assistantMessageContainer.id = `msg-${assistantMessageId}`;
+                assistantMessageContainer.innerHTML = `
+                    <div class="message-avatar assistant-avatar">K</div>
+                    <div class="message-content">
+                        <div class="message-bubble assistant-bubble" id="bubble-${assistantMessageId}"></div>
+                        <div class="message-actions">
+                            <button class="action-btn retry-btn" title="重新生成" data-id="${assistantMessageId}">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        </div>
+                        <div class="message-timestamp">${formatTime(new Date())}</div>
+                    </div>
+                `;
+                
+                const messageBubble = assistantMessageContainer.querySelector('.message-bubble');
+                messagesDiv.appendChild(assistantMessageContainer);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                
+                // 添加重试按钮事件
+                const retryBtn = assistantMessageContainer.querySelector('.retry-btn');
+                retryBtn.addEventListener('click', () => retryMessage(assistantMessageId));
+                
+                // 添加到聊天历史
+                const assistantMessage = {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: '',
+                    timestamp: new Date()
+                };
+                
+                chatHistory.push(assistantMessage);
+                lastMessageId = assistantMessageId;
+                
+                // 移除重试指示器
+                if (retryIndicator) retryIndicator.remove();
+                
+                // 处理流式响应
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                currentStream = {
+                    reader: reader,
+                    active: true
+                };
+                
+                while (currentStream.active) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    let position;
+                    while ((position = buffer.indexOf('\n\n')) >= 0) {
+                        const eventString = buffer.substring(0, position);
+                        buffer = buffer.substring(position + 2);
+                        
+                        if (eventString.startsWith('data: ')) {
+                            const jsonData = eventString.substring(6);
+                            try {
+                                const eventData = JSON.parse(jsonData);
+                                if (eventData.content) {
+                                    messageBubble.textContent += eventData.content;
+                                    
+                                    // 更新聊天历史
+                                    const index = chatHistory.findIndex(msg => msg.id === assistantMessageId);
+                                    if (index !== -1) {
+                                        chatHistory[index].content = messageBubble.textContent;
+                                    }
+                                } else if (eventData.role === 'assistant' && eventData.tool_calls) {
+                                    const toolNames = eventData.tool_calls.map(tc => tc.name).join(', ');
+                                    const toolsEl = document.createElement('div');
+                                    toolsEl.className = 'message-tools';
+                                    toolsEl.textContent = `调用工具: ${toolNames}`;
+                                    messageBubble.appendChild(toolsEl);
+                                }
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            } catch (e) {
+                                console.error('解析错误:', e, jsonData);
+                                messageBubble.textContent += ` [数据解析错误] `;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                appendMessage(`请求错误: ${error.message}`, 'error');
+                loadingIndicator.style.display = 'none';
+            } finally {
+                currentStream = null;
                 sendButton.disabled = false;
             }
         }
         
         // 添加消息到UI
-        function appendMessage(text, type) {
+        function appendMessage(text, type, messageId = Date.now()) {
             const messageEl = document.createElement('div');
             messageEl.className = `message ${type === 'user' ? 'message-user' : ''}`;
+            messageEl.id = `msg-${messageId}`;
             
             const avatarClass = type === 'user' ? 'user-avatar' : 'assistant-avatar';
             const bubbleClass = type === 'user' ? 'user-bubble' : 'assistant-bubble';
             const label = type === 'user' ? '您' : 'Kiwi';
             const avatarText = type === 'user' ? 'U' : 'K';
             
+            let actionsHTML = '';
+            if (type === 'assistant') {
+                actionsHTML = `
+                    <div class="message-actions">
+                        <button class="action-btn retry-btn" title="重试" data-id="${messageId}">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            
             messageEl.innerHTML = `
                 <div class="message-avatar ${avatarClass}">${avatarText}</div>
                 <div class="message-content">
                     <div class="message-bubble ${bubbleClass}">${text}</div>
+                    ${actionsHTML}
                     <div class="message-timestamp">${formatTime(new Date())}</div>
                 </div>
             `;
             
             messagesDiv.appendChild(messageEl);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // 添加重试按钮事件
+            if (type === 'assistant') {
+                const retryBtn = messageEl.querySelector('.retry-btn');
+                retryBtn.addEventListener('click', () => retryMessage(messageId));
+            }
+            
+            // 添加到聊天历史
+            chatHistory.push({
+                id: messageId,
+                role: type,
+                content: text,
+                timestamp: new Date()
+            });
+            
+            lastMessageId = messageId;
         }
         
         // 格式化时间
