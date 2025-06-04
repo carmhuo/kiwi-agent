@@ -71,13 +71,17 @@ async def astream_agent_endpoint(payload: ChatRequest):
 
         initial_graph_input = {"messages": input_messages}
         # https://python.langchain.com/docs/concepts/runnables/#runnableconfig
-        config = {
+                # Prepare configurable parameters
+        
+        run_config = {
             'run_name': 'kiwi_agent', 
             'tags': ['kiwi', 'sql agent', 'graph'], 
-            "configurable": {"model": "Qwen/Qwen2.5-32B-Instruct"}
+            "configurable": {
+                "model": payload.config.model if payload.config and payload.config.model else "Qwen/Qwen2.5-32B-Instruct"
+            }
         }
         
-        return StreamingResponse(event_stream_generator(initial_graph_input, config), media_type="text/event-stream")
+        return StreamingResponse(event_stream_generator(initial_graph_input, run_config), media_type="text/event-stream")
 
     except HTTPException as http_exc: # Re-raise HTTPException
         raise http_exc
