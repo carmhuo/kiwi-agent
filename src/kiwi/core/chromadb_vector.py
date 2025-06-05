@@ -6,15 +6,15 @@ import pandas as pd
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
-from .base import VannaBase
-from .utils import deterministic_uuid
+from .base import KiwiBase
+from ..utils import deterministic_uuid
 
 default_ef = embedding_functions.DefaultEmbeddingFunction()
 
 
-class ChromaDB_VectorStore(VannaBase):
+class ChromaDB_VectorStore(KiwiBase):
     def __init__(self, config=None):
-        VannaBase.__init__(self, config=config)
+        KiwiBase.__init__(self, config=config)
         if config is None:
             config = {}
 

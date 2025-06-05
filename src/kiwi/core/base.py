@@ -4,26 +4,26 @@ r"""
 
 | Prefix | Definition | Examples |
 | --- | --- | --- |
-| `vn.get_` | Fetch some data | [`vn.get_related_ddl(...)`][vanna.base.base.VannaBase.get_related_ddl] |
-| `vn.add_` | Adds something to the retrieval layer | [`vn.add_question_sql(...)`][vanna.base.base.VannaBase.add_question_sql] <br> [`vn.add_ddl(...)`][vanna.base.base.VannaBase.add_ddl] |
-| `vn.generate_` | Generates something using AI based on the information in the model | [`vn.generate_sql(...)`][vanna.base.base.VannaBase.generate_sql] <br> [`vn.generate_explanation()`][vanna.base.base.VannaBase.generate_explanation] |
-| `vn.run_` | Runs code (SQL) | [`vn.run_sql`][vanna.base.base.VannaBase.run_sql] |
-| `vn.remove_` | Removes something from the retrieval layer | [`vn.remove_training_data`][vanna.base.base.VannaBase.remove_training_data] |
-| `vn.connect_` | Connects to a database | [`vn.connect_to_snowflake(...)`][vanna.base.base.VannaBase.connect_to_snowflake] |
+| `vn.get_` | Fetch some data | [`vn.get_related_ddl(...)`][kiwi.core.base.KiwiBase.get_related_ddl] |
+| `vn.add_` | Adds something to the retrieval layer | [`vn.add_question_sql(...)`][kiwi.core.base.KiwiBase.add_question_sql] <br> [`vn.add_ddl(...)`][kiwi.core.base.KiwiBase.add_ddl] |
+| `vn.generate_` | Generates something using AI based on the information in the model | [`vn.generate_sql(...)`][kiwi.core.base.KiwiBase.generate_sql] <br> [`vn.generate_explanation()`][kiwi.core.base.KiwiBase.generate_explanation] |
+| `vn.run_` | Runs code (SQL) | [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql] |
+| `vn.remove_` | Removes something from the retrieval layer | [`vn.remove_training_data`][kiwi.core.base.KiwiBase.remove_training_data] |
+| `vn.connect_` | Connects to a database | [`vn.connect_to_snowflake(...)`][kiwi.core.base.KiwiBase.connect_to_snowflake] |
 | `vn.update_` | Updates something | N/A -- unused |
 | `vn.set_` | Sets something | N/A -- unused  |
 
 # Open-Source and Extending
 
-Vanna.AI is open-source and extensible. If you'd like to use Vanna without the servers, see an example [here](https://vanna.ai/docs/postgres-ollama-chromadb/).
+Kiwi.AI is open-source and extensible. If you'd like to use Kiwi without the servers, see an example [here](https://kiwi.ai/docs/postgres-ollama-chromadb/).
 
-The following is an example of where various functions are implemented in the codebase when using the default "local" version of Vanna. `vanna.base.VannaBase` is the base class which provides a `vanna.base.VannaBase.ask` and `vanna.base.VannaBase.train` function. Those rely on abstract methods which are implemented in the subclasses `vanna.openai_chat.OpenAI_Chat` and `vanna.chromadb_vector.ChromaDB_VectorStore`. `vanna.openai_chat.OpenAI_Chat` uses the OpenAI API to generate SQL and Plotly code. `vanna.chromadb_vector.ChromaDB_VectorStore` uses ChromaDB to store training data and generate embeddings.
+The following is an example of where various functions are implemented in the codebase when using the default "local" version of Kiwi. `kiwi.base.KiwiBase` is the base class which provides a `kiwi.base.KiwiBase.ask` and `kiwi.base.KiwiBase.train` function. Those rely on abstract methods which are implemented in the subclasses `kiwi.openai_chat.OpenAI_Chat` and `kiwi.chromadb_vector.ChromaDB_VectorStore`. `kiwi.openai_chat.OpenAI_Chat` uses the OpenAI API to generate SQL and Plotly code. `kiwi.chromadb_vector.ChromaDB_VectorStore` uses ChromaDB to store training data and generate embeddings.
 
-If you want to use Vanna with other LLMs or databases, you can create your own subclass of `vanna.base.VannaBase` and implement the abstract methods.
+If you want to use Kiwi with other LLMs or databases, you can create your own subclass of `kiwi.base.KiwiBase` and implement the abstract methods.
 
 ```mermaid
 flowchart
-    subgraph VannaBase
+    subgraph KiwiBase
         ask
         train
     end
@@ -69,7 +69,7 @@ from kiwi.types import TrainingPlan, TrainingPlanItem
 from kiwi.utils import validate_config_path
 
 
-class VannaBase(ABC):
+class KiwiBase(ABC):
     def __init__(self, config=None):
         if config is None:
             config = {}
@@ -99,15 +99,15 @@ class VannaBase(ABC):
 
         Uses the LLM to generate a SQL query that answers a question. It runs the following methods:
 
-        - [`get_similar_question_sql`][vanna.base.base.VannaBase.get_similar_question_sql]
+        - [`get_similar_question_sql`][kiwi.core.base.KiwiBase.get_similar_question_sql]
 
-        - [`get_related_ddl`][vanna.base.base.VannaBase.get_related_ddl]
+        - [`get_related_ddl`][kiwi.core.base.KiwiBase.get_related_ddl]
 
-        - [`get_related_documentation`][vanna.base.base.VannaBase.get_related_documentation]
+        - [`get_related_documentation`][kiwi.core.base.KiwiBase.get_related_documentation]
 
-        - [`get_sql_prompt`][vanna.base.base.VannaBase.get_sql_prompt]
+        - [`get_sql_prompt`][kiwi.core.base.KiwiBase.get_sql_prompt]
 
-        - [`submit_prompt`][vanna.base.base.VannaBase.submit_prompt]
+        - [`submit_prompt`][kiwi.core.base.KiwiBase.submit_prompt]
 
 
         Args:
@@ -309,7 +309,7 @@ class VannaBase(ABC):
         vn.generate_followup_questions("What are the top 10 customers by sales?", sql, df)
         ```
 
-        Generate a list of followup questions that you can ask Vanna.AI.
+        Generate a list of followup questions that you can ask Kiwi.AI.
 
         Args:
             question (str): The question that was asked.
@@ -318,7 +318,7 @@ class VannaBase(ABC):
             n_questions (int): Number of follow-up questions to generate.
 
         Returns:
-            list: A list of followup questions that you can ask Vanna.AI.
+            list: A list of followup questions that you can ask Kiwi.AI.
         """
 
         message_log = [
@@ -343,7 +343,7 @@ class VannaBase(ABC):
         vn.generate_questions()
         ```
 
-        Generate a list of questions that you can ask Vanna.AI.
+        Generate a list of questions that you can ask Kiwi.AI.
         """
         question_sql = self.get_similar_question_sql(question="", **kwargs)
 
@@ -773,7 +773,7 @@ class VannaBase(ABC):
         except ImportError:
             raise DependencyError(
                 "You need to install required dependencies to execute this method, run command:"
-                " \npip install vanna[snowflake]"
+                " \npip install kiwi[snowflake]"
             )
 
         if username == "my-username":
@@ -842,7 +842,7 @@ class VannaBase(ABC):
 
     def connect_to_sqlite(self, url: str, check_same_thread: bool = False,  **kwargs):
         """
-        Connect to a SQLite database. This is just a helper function to set [`vn.run_sql`][vanna.base.base.VannaBase.run_sql]
+        Connect to a SQLite database. This is just a helper function to set [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql]
 
         Args:
             url (str): The URL of the database to connect to.
@@ -889,7 +889,7 @@ class VannaBase(ABC):
     ):
 
         """
-        Connect to postgres using the psycopg2 connector. This is just a helper function to set [`vn.run_sql`][vanna.base.base.VannaBase.run_sql]
+        Connect to postgres using the psycopg2 connector. This is just a helper function to set [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql]
         **Example:**
         ```python
         vn.connect_to_postgres(
@@ -914,7 +914,7 @@ class VannaBase(ABC):
         except ImportError:
             raise DependencyError(
                 "You need to install required dependencies to execute this method,"
-                " run command: \npip install vanna[postgres]"
+                " run command: \npip install kiwi[postgres]"
             )
 
         if not host:
@@ -1181,7 +1181,7 @@ class VannaBase(ABC):
     ):
 
         """
-        Connect to an Oracle db using oracledb package. This is just a helper function to set [`vn.run_sql`][vanna.base.base.VannaBase.run_sql]
+        Connect to an Oracle db using oracledb package. This is just a helper function to set [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql]
         **Example:**
         ```python
         vn.connect_to_oracle(
@@ -1270,7 +1270,7 @@ class VannaBase(ABC):
         **kwargs
     ):
         """
-        Connect to gcs using the bigquery connector. This is just a helper function to set [`vn.run_sql`][vanna.base.base.VannaBase.run_sql]
+        Connect to gcs using the bigquery connector. This is just a helper function to set [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql]
         **Example:**
         ```python
         vn.connect_to_bigquery(
@@ -1290,7 +1290,7 @@ class VannaBase(ABC):
         except ImportError:
             raise DependencyError(
                 "You need to install required dependencies to execute this method, run command:"
-                " \npip install vanna[bigquery]"
+                " \npip install kiwi[bigquery]"
             )
 
         if not project_id:
@@ -1353,7 +1353,7 @@ class VannaBase(ABC):
 
     def connect_to_duckdb(self, url: str, init_sql: str = None, **kwargs):
         """
-        Connect to a DuckDB database. This is just a helper function to set [`vn.run_sql`][vanna.base.base.VannaBase.run_sql]
+        Connect to a DuckDB database. This is just a helper function to set [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql]
 
         Args:
             url (str): The URL of the database to connect to. Use :memory: to create an in-memory database. Use md: or motherduck: to use the MotherDuck database.
@@ -1367,7 +1367,7 @@ class VannaBase(ABC):
         except ImportError:
             raise DependencyError(
                 "You need to install required dependencies to execute this method,"
-                " run command: \npip install vanna[duckdb]"
+                " run command: \npip install kiwi[duckdb]"
             )
         # URL of the database to download
         if url == ":memory:" or url == "":
@@ -1402,7 +1402,7 @@ class VannaBase(ABC):
 
     def connect_to_mssql(self, odbc_conn_str: str, **kwargs):
         """
-        Connect to a Microsoft SQL Server database. This is just a helper function to set [`vn.run_sql`][vanna.base.base.VannaBase.run_sql]
+        Connect to a Microsoft SQL Server database. This is just a helper function to set [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql]
 
         Args:
             odbc_conn_str (str): The ODBC connection string.
@@ -1575,8 +1575,8 @@ class VannaBase(ABC):
         **kwargs
     ):
       """
-        Connect to a Hive database. This is just a helper function to set [`vn.run_sql`][vanna.base.base.VannaBase.run_sql]
-        Connect to a Hive database. This is just a helper function to set [`vn.run_sql`][vanna.base.base.VannaBase.run_sql]
+        Connect to a Hive database. This is just a helper function to set [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql]
+        Connect to a Hive database. This is just a helper function to set [`vn.run_sql`][kiwi.core.base.KiwiBase.run_sql]
 
         Args:
             host (str): The host of the Hive database.
@@ -1701,12 +1701,12 @@ class VannaBase(ABC):
         vn.ask("What are the top 10 customers by sales?")
         ```
 
-        Ask Vanna.AI a question and get the SQL query that answers it.
+        Ask Kiwi.AI a question and get the SQL query that answers it.
 
         Args:
             question (str): The question to ask.
             print_results (bool): Whether to print the results of the SQL query.
-            auto_train (bool): Whether to automatically train Vanna.AI on the question and SQL query.
+            auto_train (bool): Whether to automatically train Kiwi.AI on the question and SQL query.
             visualize (bool): Whether to generate plotly code and display the plotly figure.
 
         Returns:
@@ -1807,12 +1807,12 @@ class VannaBase(ABC):
         vn.train()
         ```
 
-        Train Vanna.AI on a question and its corresponding SQL query.
+        Train Kiwi.AI on a question and its corresponding SQL query.
         If you call it with no arguments, it will check if you connected to a database and it will attempt to train on the metadata of that database.
-        If you call it with the sql argument, it's equivalent to [`vn.add_question_sql()`][vanna.base.base.VannaBase.add_question_sql].
-        If you call it with the ddl argument, it's equivalent to [`vn.add_ddl()`][vanna.base.base.VannaBase.add_ddl].
-        If you call it with the documentation argument, it's equivalent to [`vn.add_documentation()`][vanna.base.base.VannaBase.add_documentation].
-        Additionally, you can pass a [`TrainingPlan`][vanna.types.TrainingPlan] object. Get a training plan with [`vn.get_training_plan_generic()`][vanna.base.base.VannaBase.get_training_plan_generic].
+        If you call it with the sql argument, it's equivalent to [`vn.add_question_sql()`][kiwi.core.base.KiwiBase.add_question_sql].
+        If you call it with the ddl argument, it's equivalent to [`vn.add_ddl()`][kiwi.core.base.KiwiBase.add_ddl].
+        If you call it with the documentation argument, it's equivalent to [`vn.add_documentation()`][kiwi.core.base.KiwiBase.add_documentation].
+        Additionally, you can pass a [`TrainingPlan`][kiwi.types.TrainingPlan] object. Get a training plan with [`vn.get_training_plan_generic()`][kiwi.core.base.KiwiBase.get_training_plan_generic].
 
         Args:
             question (str): The question to train on.

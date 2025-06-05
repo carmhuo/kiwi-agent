@@ -198,6 +198,8 @@ You can also quickly extend this template by:
 
 ## Development
 
+`cd kiwi & nohup python -m uvicorn src.kiwi.fastapi.agent_app:app --host 0.0.0.0 --port 36213 > logs/fastapi_agent.log 2>&1 &`
+
 While iterating on your graph, you can edit past state and rerun your app from past states to debug specific nodes. Local changes will be automatically applied via hot reload. Try adding an interrupt before the agent calls tools, updating the default system message in `src/react_agent/configuration.py` to take on a persona, or adding additional nodes and edges!
 
 Follow up requests will be appended to the same thread. You can create an entirely new thread, clearing previous history, using the `+` button in the top right.

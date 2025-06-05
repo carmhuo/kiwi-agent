@@ -1,27 +1,33 @@
 import os
 import sys
-import socket
 from datetime import datetime
 
 from kiwi.flask_app import VannaFlaskApp
-from kiwi import ChromaDB_VectorStore
-from kiwi import OpenAI_Chat
-from openai import OpenAI
+from kiwi.core import ChromaDB_VectorStore
+from kiwi.core import LangChain_Chat
+from kiwi.utils import find_free_port, load_chat_model
 
 
-def find_free_port(default_port=2025):
-    """Find an available port"""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+class MyKiwi(ChromaDB_VectorStore, LangChain_Chat):
+    def __init__(self, chat_model=None, config=None):
+        ChromaDB_VectorStore.__init__(self, config=config)
+        LangChain_Chat.__init__(self, chat_model=chat_model, config=config)
+
+def _duckdb_init_sql() ->  str:
+    """ Get database init script path from environment"""
+    init_sql = None
+    init_script_path = os.getenv('DUCKDB_INIT_SCRIPT')
+
+    if init_script_path and os.path.exists(init_script_path):
         try:
-            s.bind(('', default_port))
-            s.listen(1)
-            return default_port
-        except socket.error:
-            s.bind(('', 0))
-            s.listen(1)
-            return s.getsockname()[1]
-    return port
-
+            with open(init_script_path, 'r') as f:
+                init_sql = f.read()
+            print(f"✅ Loaded duckdb initialization script from {init_script_path}")
+            return init_sql
+        except Exception as e:
+            print(f"❌ Failed to read init script: {str(e)}")
+            sys.exit(1)
+    return None
 
 def main():
     print("🚀 Starting Kiwi Application...")
@@ -43,21 +49,15 @@ def main():
         sys.exit(1)
 
     try:
-        print("🔗 Connecting to ModelScope API...")
-        client = OpenAI(
-            base_url='https://api-inference.modelscope.cn/v1/',
-            api_key=api_key,  # ModelScope Token from environment
-        )
+        # print("🔗 Connecting to ModelScope API...")
+        # client = OpenAI(
+        #     base_url='https://api-inference.modelscope.cn/v1/',
+        #     api_key=api_key,  # ModelScope Token from environment
+        # )
 
-        class MyVanna(ChromaDB_VectorStore, OpenAI_Chat):
-            def __init__(self, config=None):
-                ChromaDB_VectorStore.__init__(self, config=config)
-                OpenAI_Chat.__init__(self, client=client, config=config)
-
-        print("🧠 Initializing Vanna AI...")
+        print("🧠 Initializing Kiwi AI...")
 
         formatted_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
         initial_prompt = """
         You are a {dialect} expert.
         Please help to generate a syntactically correct SQL query to answer the question. 
@@ -65,7 +65,7 @@ def main():
 
         Your response should ONLY be based on the given context and follow the response guidelines and format instructions.
 
-        The current system time is {current_time}.
+        Today is {current_time}.
         """.format(
             dialect='duckdb',
             top_k=1000,
@@ -73,7 +73,8 @@ def main():
         )
         model = os.getenv('MODELSCOPE_DEEPSEEK_MODEL')
         chroma_path = '/mnt/workspace/data/chromadb/gb_vhcl_signal_db'
-        vn = MyVanna(config={
+
+        kiwi = MyKiwi(chat_model=load_chat_model(model), config={
             'model': model,
             'path': chroma_path,
             'client': 'persistent',
@@ -81,18 +82,18 @@ def main():
             'initial_prompt': initial_prompt
         })
 
-        # Connect to database
+        # Connect to duckdb
         db_path = '/mnt/workspace/data/duckdb/gb_vhcl.db'
         if os.path.exists(db_path):
             print(f"📊 Connecting to database: {db_path}")
-            vn.connect_to_duckdb(db_path, read_only=True)
+            kiwi.connect_to_duckdb(db_path, init_sql=_duckdb_init_sql(), read_only=True)
         else:
             print(f"⚠️  Database not found: {db_path}")
             print("💡 Application will run but database features may not work.")
 
         print("🌐 Creating Flask application...")
         app = VannaFlaskApp(
-            vn, 
+            kiwi, 
             logo=None, 
             title="Welcome to Kiwi SQL Assistant", 
             allow_llm_to_see_data=True, 
