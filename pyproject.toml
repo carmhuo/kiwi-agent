@@ -60,7 +60,7 @@ dev = [
 # Database backends
 postgres = ["psycopg2-binary>=2.9.0", "db-dtypes>=1.0.0"]
 mysql = ["PyMySQL>=1.0.0"]
-duckdb = ["duckdb>=1.2.0"]
+duckdb = ["duckdb>=1.2.0", "duckdb-engine>=0.17.0"]
 
 # Vector stores and AI services
 chromadb = ["chromadb>=1.0.0"]

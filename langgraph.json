@@ -1,7 +1,8 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "agent": "./src/kiwi/react_agent/graph.py:graph"
+    "agent": "./src/kiwi/react_agent/graph.py:graph",
+    "indexer": "./src/kiwi/react_agent/index_graph.py:graph"
   },
   "env": ".env"
 }
