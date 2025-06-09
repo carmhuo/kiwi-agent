@@ -14,7 +14,8 @@ from langchain_tavily import TavilySearch
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
 
 from kiwi.react_agent.configuration import Configuration
-from kiwi.react_agent.utils import load_chat_model, from_duckdb
+from kiwi.react_agent.utils import load_chat_model, from_duckdb, get_database
+
 
 async def web_search(query: str) -> Optional[dict[str, Any]]:
     """Search for general web results.
@@ -96,7 +97,9 @@ def build_db_tools() -> List[Union[BaseTool, Callable, dict[str, Any]]]:
 
     """
     configuration = Configuration.from_runnable_config()
-    db = from_duckdb()
+    # 获取不到runnable_config,只加载一次
+    db_gen = get_database(configuration)
+    db = next(db_gen)
     llm = load_chat_model(configuration.model)
     # 初始化SQL工具链
     sql_toolkit = SQLDatabaseToolkit(db=db, llm=llm)

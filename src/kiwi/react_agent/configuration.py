@@ -34,6 +34,21 @@ class Configuration(BaseModel):
         },
     )
 
+    database: Literal["duckdb", "sqlite"] = Field(
+        default="duckdb",
+        metadata={
+            "description": "a database for query",
+            "example": "sqlite, duckdb, mysql..."
+        }
+    )
+
+    sql_script: str = Field(
+        default="init_script.sql",
+        metadata={
+            "description": "init sql script path",
+            "example": "path/to/script.sql"
+        }
+    )
     # New database configuration fields
     database_path: str = Field(
         default="/mnt/workspace/data/duckdb/gb_vhcl.db",

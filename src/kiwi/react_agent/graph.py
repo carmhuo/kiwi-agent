@@ -14,14 +14,11 @@ from langgraph.prebuilt import ToolNode
 from kiwi.react_agent.configuration import Configuration
 from kiwi.react_agent.state import InputState, State
 from kiwi.react_agent.tools import TOOLS
-from kiwi.react_agent.utils import load_chat_model, from_duckdb, get_current_time
+from kiwi.react_agent.utils import load_chat_model, get_database, get_current_time
 
 from dotenv import load_dotenv
 
 load_dotenv(override=True)  # load environment variables from .env
-
-dialect = from_duckdb().dialect
-
 
 async def retrieve(
     state: State, *, config: RunnableConfig
@@ -59,6 +56,9 @@ async def call_model(state: State, config: RunnableConfig) -> Dict[str, List[AIM
 
     # Initialize the model with tool binding. Change the model or add more tools here.
     model = load_chat_model(config.model).bind_tools(TOOLS)
+
+    dialect = next(get_database(config)).dialect
+    print(f"dialect: {dialect}")
 
     # Format the system prompt. Customize this to change the agent's behavior.
     system_message = config.system_prompt.format(
