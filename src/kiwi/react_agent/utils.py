@@ -2,18 +2,19 @@
 import os
 from datetime import datetime
 from functools import lru_cache
-from typing import Generator
-from urllib.parse import urlparse
+from typing import Generator, Optional
+
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.exc import SQLAlchemyError
 
 from langchain.chat_models import init_chat_model
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
+from langchain_core.documents import Document
+# from langchain_openai import ChatOpenAI
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from langchain_community.utilities import SQLDatabase
-from sqlalchemy import create_engine, event
-from sqlalchemy.pool import StaticPool, NullPool
-from sqlalchemy.exc import SQLAlchemyError
 
 from kiwi.react_agent.configuration import Configuration
 
@@ -37,6 +38,57 @@ def get_message_text(msg: BaseMessage) -> str:
     else:
         txts = [c if isinstance(c, str) else (c.get("text") or "") for c in content]
         return "".join(txts).strip()
+
+
+def _format_doc(doc: Document) -> str:
+    """Format a single document as XML.
+
+    Args:
+        doc (Document): The document to format.
+
+    Returns:
+        str: The formatted document as an XML string.
+    """
+    metadata = doc.metadata or {}
+    meta = "".join(f" {k}={v!r}" for k, v in metadata.items())
+    if meta:
+        meta = f" {meta}"
+
+    return f"<document{meta}>\n{doc.page_content}\n</document>"
+
+
+def format_docs(docs: Optional[list[Document]]) -> str:
+    """Format a list of documents as XML.
+
+    This function takes a list of Document objects and formats them into a single XML string.
+
+    Args:
+        docs (Optional[list[Document]]): A list of Document objects to format, or None.
+
+    Returns:
+        str: A string containing the formatted documents in XML format.
+
+    Examples:
+        >>> docs = [Document(page_content="Hello"), Document(page_content="World")]
+        >>> print(format_docs(docs))
+        <documents>
+        <document>
+        Hello
+        </document>
+        <document>
+        World
+        </document>
+        </documents>
+
+        >>> print(format_docs(None))
+        <documents></documents>
+    """
+    if not docs:
+        return "<documents></documents>"
+    formatted = "\n".join(_format_doc(doc) for doc in docs)
+    return f"""<documents>
+{formatted}
+</documents>"""
 
 
 @lru_cache(maxsize=1)
@@ -78,6 +130,7 @@ def get_database(config: RunnableConfig) -> Generator[SQLDatabase, None, None]:
                 f"Expected one of: {', '.join(Configuration.__annotations__['database'].__args__)}\n"
                 f"Got: {configuration.database}"
             )
+
 
 def _load_init_sql(init_script_path) -> str:
     """ Get database init script path from environment"""

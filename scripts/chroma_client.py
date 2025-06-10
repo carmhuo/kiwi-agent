@@ -143,5 +143,19 @@ def index_from_json():
 
     print(results)
 
+
+def serialize(question: str, sql: str) -> str:
+    """Serialize ``obj`` to a JSON formatted ``str``"""
+    question_sql_json = json.dumps(
+        {
+            "question": question,
+            "sql": sql,
+        },
+        ensure_ascii=False,
+    )
+    return question_sql_json
+
 if __name__ == "__main__":
-    index_from_json()
+    # index_from_json()
+    print([serialize(example['input'], example['query']) for example in examples])
+    # simple_test()

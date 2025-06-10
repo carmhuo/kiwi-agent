@@ -116,3 +116,32 @@ class IndexConfiguration(Configuration):
             "description": "Additional keyword arguments to pass to the search function of the retriever."
         },
     )
+
+
+class RetrievalConfiguration(IndexConfiguration):
+    """The configuration for the retrieval agent."""
+    retrieval_system_prompt: str = Field(
+        default=prompts.RETRIEVAL_SYSTEM_PROMPT,
+        metadata={"description": "The retrieval system prompt used for generating responses."},
+    )
+
+    retrieval_model: str = Field(
+        default="Qwen/Qwen3-32B",
+        metadata={
+            "description": "The language model used for generating responses. Should be in the form: provider/model-name."
+        },
+    )
+
+    query_system_prompt: str = Field(
+        default=prompts.QUERY_SYSTEM_PROMPT,
+        metadata={
+            "description": "The system prompt used for processing and refining queries."
+        },
+    )
+
+    query_model: str = Field(
+        default="Qwen/Qwen3-32B",
+        metadata={
+            "description": "The language model used for processing and refining queries. Should be in the form: provider/model-name."
+        },
+    )

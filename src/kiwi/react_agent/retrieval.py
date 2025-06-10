@@ -10,11 +10,6 @@ import os
 from contextlib import contextmanager
 from typing import Generator
 
-# import chromadb
-# import jsonschema
-# from langchain_chroma import Chroma  # 显式预加载
-
-
 from langchain_core.embeddings import Embeddings
 from langchain_core.runnables import RunnableConfig
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -137,12 +132,18 @@ def make_chroma_retriever(
 ) -> Generator[VectorStoreRetriever, None, None]:
     """Configure this agent to connect to chroma index."""
     from langchain_chroma import Chroma
+    user_id = configuration.user_id
     # Where to save data locally, remove if not necessary
     persist_dir = os.environ.get("CHROMA_DB_PATH", "./chroma_langchain_db")
+
+    import chromadb
+    chroma_client = chromadb.PersistentClient(path=persist_dir)
+
     vector_store = Chroma(
-        collection_name="query_sql",
+        collection_name=f"{user_id}_userspace_query_examples",
         embedding_function=embedding_model,
         persist_directory=persist_dir,  # Where to save data locally, remove if not necessary
+        client=chroma_client
     )
 
     search_kwargs = configuration.search_kwargs
@@ -155,9 +156,7 @@ def make_in_memory_retriever(
 ) -> Generator[VectorStoreRetriever, None, None]:
     """Configure this agent to connect to in memory index."""
     from langchain_core.vectorstores import InMemoryVectorStore
-
     vstore = InMemoryVectorStore(embedding_model)
-
     search_kwargs = configuration.search_kwargs
     yield vstore.as_retriever(search_kwargs=search_kwargs)
 
