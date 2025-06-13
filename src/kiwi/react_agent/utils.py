@@ -118,7 +118,6 @@ def load_chat_model(fully_specified_name: str) -> BaseChatModel:
 
 def get_database(config: RunnableConfig) -> Generator[SQLDatabase, None, None]:
     configuration = Configuration.from_runnable_config(config)
-    print(f"get_database: {configuration.database}")
     match configuration.database:
         case "duckdb":
             yield from_duckdb()
@@ -176,7 +175,7 @@ def from_duckdb() -> SQLDatabase:
         read_only = os.environ.get("DUCKDB_READ_ONLY", False)
         memory_limit = os.environ.get("DUCKDB_MEM_LIMIT", '500MB')
         init_script_path = os.getenv('DUCKDB_INIT_SCRIPT', None)
-
+        print(f"db dialect： duckdb, uri: ${uri}, read_only: {read_only}")
         init_script = _load_init_sql(init_script_path)
 
         path = ":memory:"
@@ -218,6 +217,7 @@ def from_duckdb() -> SQLDatabase:
 
 @lru_cache(maxsize=1)
 def from_sqlite(sql_script=None) -> SQLDatabase:
+    print(f"db dialect： sqlite")
     def get_engine_for_chinook_db(sql_script=None):
         """Pull sql file, populate in-memory database, and create engine."""
         if not sql_script:
