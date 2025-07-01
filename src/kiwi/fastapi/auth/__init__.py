@@ -1,0 +1,1 @@
+from kiwi.fastapi.auth.auth import NoAuth
