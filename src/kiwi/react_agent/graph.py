@@ -58,7 +58,6 @@ async def call_model(state: State, config: RunnableConfig) -> Dict[str, List[AIM
     model = load_chat_model(config.model).bind_tools(TOOLS)
 
     dialect = next(get_database(config)).dialect
-    print(f"dialect: {dialect}")
 
     # Format the system prompt. Customize this to change the agent's behavior.
     system_message = config.system_prompt.format(

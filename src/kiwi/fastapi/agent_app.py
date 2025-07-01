@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware # For frontend if on differen
 from fastapi.responses import FileResponse
 from pathlib import Path
 
-from kiwi.fastapi.routers import router # Import the agent router
+from kiwi.fastapi.routers import router as agent_router # Import the agent router
+from kiwi.fastapi.datasource.base import router as datasource_router # Import data source router
 
 APP_DIR = Path(__file__).resolve().parent # Path to fastapi
 PROJECT_ROOT_DIR = APP_DIR.parent.parent.parent # Path to project root (e.g., kiwi/)
@@ -25,14 +26,15 @@ app.add_middleware(
     allow_headers=["*"], # Allows all headers
 )
 
-app.include_router(router) # Include the agent router
+app.include_router(agent_router) # Include the agent router
+app.include_router(datasource_router) # Include the data source router
 
 
 @app.get("/", response_class=FileResponse, tags=["Client"])
 async def serve_chat_at_root():
     """Serves the main chat HTML page from the root."""
     # Prioritize index.html, then fall back to chat.html
-    index_html_path = FRONTEND_DIR / "index.html"
+    index_html_path = FRONTEND_DIR / "chat_v2.html"
     chat_html_path = FRONTEND_DIR / "chat.html"
 
     if index_html_path.exists():
@@ -47,4 +49,4 @@ if __name__ == "__main__":
     import uvicorn
     # Make sure agent_graph.py has loaded .env and compiled 'graph' before this point.
     # Uvicorn typically handles module loading.
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="localhost", port=8000)

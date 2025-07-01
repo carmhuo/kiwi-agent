@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="./assets/images/favicon.svg" type="image/x-icon">
+    <title>Kiwi Agent Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-light: #818cf8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+            --sidebar-width: 320px;
+            --left-sidebar-width: 240px;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --user-bubble: #4f46e5;
+            --assistant-bubble: #eef2ff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f1f5f9;
+            --border-color: #334155;
+            --user-bubble: #6366f1;
+            --assistant-bubble: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* 左侧边栏样式 */
+        .left-sidebar {
+            width: var(--left-sidebar-width);
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-header h2 i {
+            color: var(--primary-color);
+        }
+
+        .menu {
+            flex: 1;
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            gap: 12px;
+            font-weight: 500;
+            border-left: 3px solid transparent;
+        }
+
+        .menu-item:hover {
+            background-color: rgba(79, 70, 229, 0.05);
+        }
+
+        .menu-item.active {
+            background-color: rgba(79, 70, 229, 0.1);
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .menu-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        /* 右侧配置面板 */
+        .right-sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-left: 1px solid var(--border-color);
+            overflow-y: auto;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            transition: transform 0.3s ease;
+            box-shadow: var(--shadow);
+            z-index: 100;
+        }
+
+        .config-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .config-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .config-group input,
+        .config-group textarea,
+        .config-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 0.875rem;
+            transition: border-color 0.3s;
+        }
+
+        .config-group input:focus,
+        .config-group textarea:focus,
+        .config-group select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+
+        .config-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .config-group .help-text {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            margin-right: 10px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button.primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        button.primary:hover {
+            background-color: #4338ca;
+        }
+
+        button.secondary {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        button.secondary:hover {
+            background-color: rgba(148, 163, 184, 0.1);
+        }
+
+        /* 中间主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            width: 100%;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-color);
+            font-size: 1.25rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(148, 163, 184, 0.1);
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-color);
+            font-size: 1.25rem;
+        }
+
+        #chatContainer {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .message {
+            display: flex;
+            max-width: 90%;
+            gap: 12px;
+        }
+
+        .message-user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .user-avatar {
+            background-color: var(--primary-light);
+            color: white;
+        }
+
+        .assistant-avatar {
+            background-color: #94a3b8;
+            color: white;
+        }
+
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-width: calc(100% - 60px);
+        }
+
+        .message-bubble {
+            padding: 16px;
+            border-radius: 18px;
+            max-width: 100%;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .user-bubble {
+            background-color: var(--user-bubble);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .assistant-bubble {
+            background-color: var(--assistant-bubble);
+            color: var(--text-color);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-timestamp {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .message-user .message-timestamp {
+            text-align: right;
+        }
+
+        .message-tools {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: var(--primary-light);
+            font-weight: 500;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message:hover .message-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            color: var(--primary-color);
+            background-color: rgba(79, 70, 229, 0.1);
+        }
+
+        #inputArea {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            gap: 10px;
+            background-color: var(--card-bg);
+        }
+
+        #userInput {
+            flex-grow: 1;
+            padding: 14px 18px;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+            resize: none;
+            height: 60px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        #userInput:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+
+        #sendButton {
+            padding: 14px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            align-self: flex-end;
+            height: 48px;
+        }
+
+        #sendButton:hover {
+            background-color: #4338ca;
+        }
+
+        #sendButton:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .loading-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 20px;
+            color: #64748b;
+            font-style: italic;
+            background-color: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .loading-indicator .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(79, 70, 229, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 0.875rem;
+        }
+
+        .success-message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--success-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            animation: fadeInOut 3s forwards;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(20px); }
+        }
+
+        .model-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary-color);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+
+        .retry-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
+
+        /* 数据源管理样式 - 优化布局 */
+        #dataSourceView {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .ds-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ds-title-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .ds-title-container h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .ds-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .ds-table-container {
+            flex: 1;
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .ds-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        .ds-table th, .ds-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ds-table th {
+            background-color: rgba(79, 70, 229, 0.05);
+            font-weight: 600;
+            font-size: 0.875rem;
+            position: sticky;
+            top: 0;
+        }
+
+        .ds-table tbody tr:hover {
+            background-color: rgba(79, 70, 229, 0.03);
+        }
+
+        .ds-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .ds-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .ds-badge.sqlite {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary-color);
+        }
+
+        .ds-badge.postgresql {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+        }
+
+        .ds-badge.duckdb {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .ds-badge.other {
+            background-color: rgba(148, 163, 184, 0.1);
+            color: #64748b;
+        }
+
+        .ds-action-btn {
+            background: none;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ds-action-btn:hover {
+            color: var(--primary-color);
+            background-color: rgba(79, 70, 229, 0.1);
+        }
+
+        .ds-form-container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .ds-form-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ds-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .ds-form-group {
+            margin-bottom: 15px;
+        }
+
+        .ds-form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .ds-form-group input, .ds-form-group textarea, .ds-form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 0.875rem;
+        }
+
+        .ds-form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .connection-result {
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.875rem;
+            display: none;
+        }
+
+        .connection-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            display: block;
+        }
+
+        .connection-error {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            display: block;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #cbd5e1;
+        }
+
+        .empty-state p {
+            margin-top: 10px;
+        }
+
+        .close-sidebar {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .close-sidebar:hover {
+            background-color: rgba(148, 163, 184, 0.1);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .right-sidebar {
+                position: fixed;
+                right: 0;
+                top: 0;
+                height: 100vh;
+                transform: translateX(100%);
+                z-index: 1000;
+                width: 90%;
+                max-width: 400px;
+            }
+
+            .right-sidebar.active {
+                transform: translateX(0);
+                box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            }
+
+            .left-sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100vh;
+                transform: translateX(-100%);
+                z-index: 1000;
+                width: 90%;
+                max-width: 320px;
+            }
+
+            .left-sidebar.active {
+                transform: translateX(0);
+                box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .message {
+                max-width: 95%;
+            }
+
+            .header h1 {
+                font-size: 1.3rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .message-actions {
+                opacity: 1;
+            }
+
+            #userInput {
+                height: 50px;
+                padding: 12px 16px;
+                font-size: 0.95rem;
+            }
+
+            #sendButton {
+                padding: 12px 20px;
+                height: 44px;
+            }
+
+            .ds-form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .ds-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .ds-title-container {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- 左侧边栏 -->
+<div class="left-sidebar" id="leftSidebar">
+    <div class="sidebar-header">
+        <h2><i class="fas fa-kiwi-bird"></i> Kiwi Agent</h2>
+    </div>
+
+    <div class="menu">
+        <div class="menu-item active" id="chatMenuItem">
+            <i class="fas fa-comments"></i>
+            <span>对话</span>
+        </div>
+        <div class="menu-item" id="dataSourceMenuItem">
+            <i class="fas fa-database"></i>
+            <span>数据源管理</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-history"></i>
+            <span>历史对话</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-cog"></i>
+            <span>设置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-question-circle"></i>
+            <span>帮助中心</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© 2025 Kiwi Agent</p>
+        <p>版本 1.2.0</p>
+    </div>
+</div>
+
+<!-- 中间主内容区 -->
+<div class="main-content">
+    <div class="header">
+        <h1>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+            <span id="mainTitle">Kiwi Agent Chat</span>
+            <span class="model-badge" id="modelBadge">Qwen/Qwen2.5-32B-Instruct</span>
+        </h1>
+        <div class="header-actions">
+            <button class="theme-toggle" id="themeToggle" title="切换主题">🌙</button>
+            <button class="config-toggle" id="configToggle" title="配置">⚙️</button>
+        </div>
+    </div>
+
+    <div id="chatContainer">
+        <div id="messages">
+            <div class="message">
+                <div class="message-avatar assistant-avatar">K</div>
+                <div class="message-content">
+                    <div class="message-bubble assistant-bubble">
+                        您好！我是Kiwi智能助手。请问有什么可以帮您的？
+                    </div>
+                    <div class="message-timestamp">现在</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+            <div class="spinner"></div>
+            <span>正在处理您的请求...</span>
+        </div>
+
+        <div id="inputArea">
+            <textarea id="userInput" placeholder="输入消息..."></textarea>
+            <button id="sendButton">
+                <i class="fas fa-paper-plane"></i>发送
+            </button>
+        </div>
+    </div>
+
+    <!-- 数据源管理视图 - 优化按钮位置 -->
+    <div id="dataSourceView">
+        <div class="ds-header">
+            <div class="ds-title-container">
+<!--                <h2>数据源管理</h2>-->
+                <button class="primary" id="addDataSourceBtn">
+                    <i class="fas fa-plus"></i>添加数据源
+                </button>
+            </div>
+            <div class="ds-actions">
+                <button class="secondary" id="refreshDataSourceBtn" title="刷新列表">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="ds-table-container">
+            <table class="ds-table">
+                <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>类型</th>
+                    <th>连接信息</th>
+                    <th>描述</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody id="dataSourceList">
+                <!-- 数据源列表将通过JS动态填充 -->
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-database"></i>
+                        <h3>没有数据源</h3>
+                        <p>点击"添加数据源"按钮创建新数据源</p>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="ds-form-container" id="dsFormContainer" style="display: none;">
+            <div class="ds-form-title" id="dsFormTitle">添加数据源</div>
+            <form id="dataSourceForm">
+                <div class="ds-form-grid">
+                    <div class="ds-form-group">
+                        <label for="dsName">名称 *</label>
+                        <input type="text" id="dsName" placeholder="输入数据源名称" required>
+                    </div>
+                    <div class="ds-form-group">
+                        <label for="dsType">类型 *</label>
+                        <select id="dsType" required>
+                            <option value="">选择数据源类型</option>
+                            <option value="sqlite">SQLite</option>
+                            <option value="duckdb">DuckDB</option>
+                            <option value="postgresql">PostgreSQL</option>
+                            <option value="mysql">MySQL</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div class="ds-form-group" style="grid-column: span 2;">
+                        <label for="dsConnection">连接字符串 *</label>
+                        <input type="text" id="dsConnection" placeholder="输入数据库连接字符串" required>
+                        <div class="help-text">例如: sqlite:///path/to/database.db,
+                            postgresql://user:password@host:port/database
+                        </div>
+                    </div>
+                    <div class="ds-form-group" style="grid-column: span 2;">
+                        <label for="dsDescription">描述</label>
+                        <textarea id="dsDescription" placeholder="输入数据源描述（可选）"></textarea>
+                    </div>
+                </div>
+
+                <div id="connectionResult" class="connection-result"></div>
+
+                <div class="ds-form-actions">
+                    <button type="button" class="secondary" id="testConnectionBtn">
+                        <i class="fas fa-plug"></i>测试连接
+                    </button>
+                    <button type="button" class="secondary" id="cancelDsBtn">
+                        取消
+                    </button>
+                    <button type="submit" class="primary" id="saveDsBtn">
+                        <i class="fas fa-save"></i>保存数据源
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 右侧配置面板 -->
+<div class="right-sidebar" id="rightSidebar">
+    <div class="sidebar-header">
+        <h2>配置参数</h2>
+        <button class="close-sidebar" id="closeSidebar">×</button>
+    </div>
+
+    <div class="config-group">
+        <label for="systemPrompt">系统提示</label>
+        <textarea id="systemPrompt" placeholder="输入系统提示..."></textarea>
+        <div class="help-text">设置代理的上下文和行为</div>
+    </div>
+
+    <div class="config-group">
+        <label for="model">语言模型</label>
+        <select id="model">
+            <option value="Qwen/Qwen2.5-32B-Instruct">Qwen2.5-32B-Instruct</option>
+            <option value="Qwen/Qwen3-32B">Qwen3-32B</option>
+            <option value="Qwen/Qwen3-235B-A22B">Qwen3-235B-A22B</option>
+            <option value="deepseek-ai/DeepSeek-R1-0528">DeepSeek-R1-0528</option>
+            <option value="deepseek-ai/DeepSeek-V3-0324">DeepSeek-V3-0324</option>
+            <option value="dianamodel">dianamodel</option>
+            <option value="dianamodel-r">dianamodel-r</option>
+        </select>
+        <div class="help-text">代理使用的主要语言模型</div>
+    </div>
+
+    <div class="config-group">
+        <label for="maxSearchResults">最大搜索结果数</label>
+        <input type="number" id="maxSearchResults" min="1" max="50" value="10">
+        <div class="help-text">每个查询返回的最大搜索结果数量</div>
+    </div>
+
+    <div class="config-group">
+        <label for="databasePath">数据库路径</label>
+        <input type="text" id="databasePath" placeholder="输入数据库路径...">
+        <div class="help-text">DuckDB数据库文件路径 (例如: /data/analytics.db)</div>
+    </div>
+
+    <div class="config-group">
+        <label>数据库只读模式</label>
+        <div class="toggle-container">
+            <label class="toggle-switch">
+                <input type="checkbox" id="readOnly">
+                <span class="toggle-slider"></span>
+            </label>
+            <span id="readOnlyStatus">关闭</span>
+        </div>
+        <div class="help-text">以只读模式打开数据库</div>
+    </div>
+
+    <div class="actions">
+        <button class="secondary" id="resetConfig">
+            <i class="fas fa-undo"></i>恢复默认
+        </button>
+        <button class="primary" id="saveConfig">
+            <i class="fas fa-save"></i>保存配置
+        </button>
+    </div>
+</div>
+
+<script>
+    // DOM元素
+    const leftSidebar = document.getElementById('leftSidebar');
+    const rightSidebar = document.getElementById('rightSidebar');
+    const closeSidebar = document.getElementById('closeSidebar');
+    const configToggle = document.getElementById('configToggle');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
+    const messagesDiv = document.getElementById('messages');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const saveConfigBtn = document.getElementById('saveConfig');
+    const resetConfigBtn = document.getElementById('resetConfig');
+    const themeToggle = document.getElementById('themeToggle');
+    const modelBadge = document.getElementById('modelBadge');
+    const chatMenuItem = document.getElementById('chatMenuItem');
+    const dataSourceMenuItem = document.getElementById('dataSourceMenuItem');
+    const dataSourceView = document.getElementById('dataSourceView');
+    const chatContainer = document.getElementById('chatContainer');
+    const dataSourceList = document.getElementById('dataSourceList');
+    const dsFormContainer = document.getElementById('dsFormContainer');
+    const dsFormTitle = document.getElementById('dsFormTitle');
+    const dataSourceForm = document.getElementById('dataSourceForm');
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
+    const cancelDsBtn = document.getElementById('cancelDsBtn');
+    const saveDsBtn = document.getElementById('saveDsBtn');
+    const connectionResult = document.getElementById('connectionResult');
+    const mainTitle = document.getElementById('mainTitle');
+    const addDataSourceBtn = document.getElementById('addDataSourceBtn');
+    const refreshDataSourceBtn = document.getElementById('refreshDataSourceBtn');
+
+    // 数据源表单元素
+    const dsName = document.getElementById('dsName');
+    const dsType = document.getElementById('dsType');
+    const dsConnection = document.getElementById('dsConnection');
+    const dsDescription = document.getElementById('dsDescription');
+
+    // 配置元素
+    const systemPrompt = document.getElementById('systemPrompt');
+    const modelSelect = document.getElementById('model');
+    const maxSearchResults = document.getElementById('maxSearchResults');
+    const databasePath = document.getElementById('databasePath');
+    const readOnlyCheckbox = document.getElementById('readOnly');
+    const readOnlyStatus = document.getElementById('readOnlyStatus');
+
+    // 默认配置
+    const DEFAULT_CONFIG = {
+        systemPrompt: '你是一个专业的AI助手，请用简洁明了的语言回答问题。',
+        model: 'Qwen/Qwen2.5-32B-Instruct',
+        maxSearchResults: 10,
+        databasePath: '/mnt/workspace/data/duckdb/vitas.db',
+        readOnly: true,
+        theme: 'light'
+    };
+
+    // 当前配置
+    let currentConfig = {...DEFAULT_CONFIG};
+
+    // 聊天历史
+    let chatHistory = [];
+    let currentStream = null;
+    let lastMessageId = 0;
+
+    // 数据源管理状态
+    let currentDataSource = null;
+    let dataSources = [];
+
+    // 初始化
+    function init() {
+        loadConfig();
+        setupEventListeners();
+        updateModelBadge();
+        setupAutoResize();
+        loadDataSources();
+    }
+
+    // 设置输入框自动调整高度
+    function setupAutoResize() {
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight > 120 ? 120 : this.scrollHeight) + 'px';
+        });
+    }
+
+    // 从localStorage加载配置
+    function loadConfig() {
+        const savedConfig = localStorage.getItem('kiwiConfig');
+        if (savedConfig) {
+            try {
+                currentConfig = {...DEFAULT_CONFIG, ...JSON.parse(savedConfig)};
+            } catch (e) {
+                console.error('Error parsing config:', e);
+                currentConfig = {...DEFAULT_CONFIG};
+            }
+        }
+
+        applyConfig();
+        applyTheme();
+    }
+
+    // 应用配置到UI
+    function applyConfig() {
+        systemPrompt.value = currentConfig.systemPrompt;
+        modelSelect.value = currentConfig.model;
+        maxSearchResults.value = currentConfig.maxSearchResults;
+        databasePath.value = currentConfig.databasePath;
+        readOnlyCheckbox.checked = currentConfig.readOnly;
+        readOnlyStatus.textContent = currentConfig.readOnly ? '开启' : '关闭';
+    }
+
+    // 应用主题
+    function applyTheme() {
+        document.body.setAttribute('data-theme', currentConfig.theme);
+        themeToggle.textContent = currentConfig.theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    // 更新模型徽章
+    function updateModelBadge() {
+        modelBadge.textContent = currentConfig.model;
+    }
+
+    // 保存配置
+    function saveConfig() {
+        currentConfig = {
+            systemPrompt: systemPrompt.value,
+            model: modelSelect.value,
+            maxSearchResults: parseInt(maxSearchResults.value) || 10,
+            databasePath: databasePath.value,
+            readOnly: readOnlyCheckbox.checked,
+            theme: currentConfig.theme
+        };
+
+        localStorage.setItem('kiwiConfig', JSON.stringify(currentConfig));
+
+        // 显示成功消息
+        showSuccessMessage('配置已保存！');
+
+        updateModelBadge();
+    }
+
+    // 显示成功消息
+    function showSuccessMessage(message) {
+        const successEl = document.createElement('div');
+        successEl.className = 'success-message';
+        successEl.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+        document.body.appendChild(successEl);
+
+        setTimeout(() => {
+            successEl.remove();
+        }, 3000);
+    }
+
+    // 重置配置
+    function resetConfig() {
+        if (confirm('确定要恢复默认配置吗？')) {
+            localStorage.removeItem('kiwiConfig');
+            currentConfig = {...DEFAULT_CONFIG};
+            applyConfig();
+            showSuccessMessage('已恢复默认配置');
+            updateModelBadge();
+        }
+    }
+
+    // 切换主题
+    function toggleTheme() {
+        currentConfig.theme = currentConfig.theme === 'light' ? 'dark' : 'light';
+        localStorage.setItem('kiwiConfig', JSON.stringify(currentConfig));
+        applyTheme();
+    }
+
+    // 显示数据源管理界面
+    function showDataSourceView() {
+        chatContainer.style.display = 'none';
+        dataSourceView.style.display = 'flex';
+        mainTitle.textContent = '数据源管理';
+        dataSourceMenuItem.classList.add('active');
+        chatMenuItem.classList.remove('active');
+        loadDataSources();
+    }
+
+    // 返回聊天界面
+    function backToChatView() {
+        chatContainer.style.display = 'flex';
+        dataSourceView.style.display = 'none';
+        dsFormContainer.style.display = 'none';
+        mainTitle.textContent = 'Kiwi Agent Chat';
+        chatMenuItem.classList.add('active');
+        dataSourceMenuItem.classList.remove('active');
+    }
+
+    // 显示数据源表单
+    function showDataSourceForm(dataSource = null) {
+        currentDataSource = dataSource;
+
+        if (dataSource) {
+            dsFormTitle.textContent = '编辑数据源';
+            dsName.value = dataSource.name;
+            dsType.value = dataSource.type;
+            dsConnection.value = dataSource.connection;
+            dsDescription.value = dataSource.description || '';
+        } else {
+            dsFormTitle.textContent = '添加数据源';
+            dsName.value = '';
+            dsType.value = '';
+            dsConnection.value = '';
+            dsDescription.value = '';
+        }
+
+        dsFormContainer.style.display = 'block';
+        connectionResult.style.display = 'none';
+    }
+
+    // 隐藏数据源表单
+    function hideDataSourceForm() {
+        dsFormContainer.style.display = 'none';
+        currentDataSource = null;
+    }
+
+    // 加载数据源列表
+    async function loadDataSources() {
+        try {
+            refreshDataSourceBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            refreshDataSourceBtn.disabled = true;
+
+            const response = await fetch('/api/datasource');
+            if (!response.ok) {
+                throw new Error(`获取数据源失败: ${response.status}`);
+            }
+
+            dataSources = await response.json();
+            renderDataSourceList();
+        } catch (error) {
+            console.error('加载数据源失败:', error);
+            showErrorMessage('加载数据源失败: ' + error.message);
+        } finally {
+            refreshDataSourceBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            refreshDataSourceBtn.disabled = false;
+        }
+    }
+
+    // 渲染数据源列表
+    function renderDataSourceList() {
+        if (dataSources.length === 0) {
+            dataSourceList.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-database"></i>
+                        <h3>没有数据源</h3>
+                        <p>点击"添加数据源"按钮创建新数据源</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        dataSourceList.innerHTML = '';
+
+        dataSources.forEach(ds => {
+            const row = document.createElement('tr');
+
+            // 根据类型设置徽章样式
+            let badgeClass = 'other';
+            if (ds.type === 'sqlite') badgeClass = 'sqlite';
+            else if (ds.type === 'duckdb') badgeClass = 'duckdb';
+            else if (ds.type === 'postgresql') badgeClass = 'postgresql';
+
+            // 格式化日期
+            const createdAt = new Date(ds.created_at);
+            const formattedDate = `${createdAt.getFullYear()}-${(createdAt.getMonth()+1).toString().padStart(2, '0')}-${createdAt.getDate().toString().padStart(2, '0')} ${createdAt.getHours().toString().padStart(2, '0')}:${createdAt.getMinutes().toString().padStart(2, '0')}`;
+
+            row.innerHTML = `
+                <td>${ds.name}</td>
+                <td><span class="ds-badge ${badgeClass}">${ds.type}</span></td>
+                <td class="connection-info">${ds.connection.substring(0, 40)}${ds.connection.length > 40 ? '...' : ''}</td>
+                <td>${ds.description || '-'}</td>
+                <td>${formattedDate}</td>
+                <td>
+                    <button class="ds-action-btn edit-ds" data-id="${ds.id}" title="编辑">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="ds-action-btn test-ds" data-id="${ds.id}" title="测试连接">
+                        <i class="fas fa-plug"></i>
+                    </button>
+                    <button class="ds-action-btn delete-ds" data-id="${ds.id}" title="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+
+            dataSourceList.appendChild(row);
+        });
+
+        // 添加事件监听
+        document.querySelectorAll('.edit-ds').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const ds = dataSources.find(d => d.id === id);
+                if (ds) showDataSourceForm(ds);
+            });
+        });
+
+        document.querySelectorAll('.test-ds').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const ds = dataSources.find(d => d.id === id);
+                if (ds) testDataSourceConnection(ds.connection);
+            });
+        });
+
+        document.querySelectorAll('.delete-ds').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const ds = dataSources.find(d => d.id === id);
+                if (ds) deleteDataSource(ds);
+            });
+        });
+    }
+
+    // 测试数据源连接
+    async function testDataSourceConnection(connectionString) {
+        try {
+            testConnectionBtn.disabled = true;
+            testConnectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测试中...';
+
+            const response = await fetch('/api/datasource/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ connection: connectionString })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                connectionResult.className = 'connection-result connection-success';
+                connectionResult.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message}`;
+            } else {
+                connectionResult.className = 'connection-result connection-error';
+                connectionResult.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${result.message || '连接失败'}`;
+            }
+
+            connectionResult.style.display = 'block';
+        } catch (error) {
+            console.error('测试连接失败:', error);
+            connectionResult.className = 'connection-result connection-error';
+            connectionResult.innerHTML = `<i class="fas fa-exclamation-circle"></i> 测试连接失败: ${error.message}`;
+            connectionResult.style.display = 'block';
+        } finally {
+            testConnectionBtn.disabled = false;
+            testConnectionBtn.innerHTML = '<i class="fas fa-plug"></i> 测试连接';
+        }
+    }
+
+    // 保存数据源
+    async function saveDataSource() {
+        const dataSourceData = {
+            name: dsName.value,
+            type: dsType.value,
+            connection: dsConnection.value,
+            description: dsDescription.value
+        };
+
+        try {
+            saveDsBtn.disabled = true;
+            saveDsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+
+            let response;
+            if (currentDataSource) {
+                // 更新现有数据源
+                response = await fetch(`/api/datasource/${currentDataSource.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dataSourceData)
+                });
+            } else {
+                // 创建新数据源
+                response = await fetch('/api/datasource', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dataSourceData)
+                });
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || '保存失败');
+            }
+
+            const result = await response.json();
+            showSuccessMessage(currentDataSource ? '数据源更新成功' : '数据源创建成功');
+            hideDataSourceForm();
+            loadDataSources();
+        } catch (error) {
+            console.error('保存数据源失败:', error);
+            connectionResult.className = 'connection-result connection-error';
+            connectionResult.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${error.message}`;
+            connectionResult.style.display = 'block';
+        } finally {
+            saveDsBtn.disabled = false;
+            saveDsBtn.innerHTML = '<i class="fas fa-save"></i> 保存数据源';
+        }
+    }
+
+    // 删除数据源
+    async function deleteDataSource(dataSource) {
+        if (!confirm(`确定要删除数据源 "${dataSource.name}" 吗？此操作不可撤销。`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/datasource/${dataSource.id}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || '删除失败');
+            }
+
+            showSuccessMessage('数据源删除成功');
+            loadDataSources();
+        } catch (error) {
+            console.error('删除数据源失败:', error);
+            showErrorMessage('删除失败: ' + error.message);
+        }
+    }
+
+    // 显示错误消息
+    function showErrorMessage(message) {
+        const errorEl = document.createElement('div');
+        errorEl.className = 'error-message';
+        errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+        document.body.appendChild(errorEl);
+
+        setTimeout(() => {
+            errorEl.remove();
+        }, 5000);
+    }
+
+    // 设置事件监听器
+    function setupEventListeners() {
+        // 配置面板切换
+        configToggle.addEventListener('click', () => rightSidebar.classList.toggle('active'));
+        closeSidebar.addEventListener('click', () => rightSidebar.classList.remove('active'));
+        mobileMenuBtn.addEventListener('click', () => {
+            leftSidebar.classList.toggle('active');
+            rightSidebar.classList.remove('active');
+        });
+
+        // 左侧菜单项
+        chatMenuItem.addEventListener('click', backToChatView);
+        dataSourceMenuItem.addEventListener('click', showDataSourceView);
+
+        // 数据源管理
+        addDataSourceBtn.addEventListener('click', () => showDataSourceForm());
+        refreshDataSourceBtn.addEventListener('click', loadDataSources);
+        cancelDsBtn.addEventListener('click', hideDataSourceForm);
+        testConnectionBtn.addEventListener('click', () => testDataSourceConnection(dsConnection.value));
+        dataSourceForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveDataSource();
+        });
+
+        // 只读状态切换
+        readOnlyCheckbox.addEventListener('change', () => {
+            readOnlyStatus.textContent = readOnlyCheckbox.checked ? '开启' : '关闭';
+        });
+
+        // 保存/重置配置
+        saveConfigBtn.addEventListener('click', saveConfig);
+        resetConfigBtn.addEventListener('click', resetConfig);
+
+        // 主题切换
+        themeToggle.addEventListener('click', toggleTheme);
+
+        // 发送消息
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    }
+
+    // 发送消息
+    async function sendMessage() {
+        const messageText = userInput.value.trim();
+        if (!messageText) return;
+
+        // 添加用户消息到UI
+        const messageId = Date.now();
+        appendMessage(messageText, 'user', messageId);
+        userInput.value = '';
+        userInput.style.height = '60px';
+        sendButton.disabled = true;
+        loadingIndicator.style.display = 'flex';
+
+        try {
+            // 准备请求数据
+            const requestData = {
+                messages: [{ role: 'user', content: messageText }],
+                config: {
+                    system_prompt: currentConfig.systemPrompt,
+                    model: currentConfig.model,
+                    max_search_results: currentConfig.maxSearchResults,
+                    database_path: currentConfig.databasePath,
+                    read_only: currentConfig.readOnly
+                }
+            };
+
+            // 发送请求
+            const response = await fetch('/api/astream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            loadingIndicator.style.display = 'none';
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({
+                    error: "请求错误",
+                    details: `状态码: ${response.status}`
+                }));
+
+                const errorMsg = errorData.error || '请求失败';
+                const details = errorData.details || '';
+                appendMessage(`错误: ${errorMsg}. ${details}`, 'error');
+                sendButton.disabled = false;
+                return;
+            }
+
+            // 创建助手消息容器
+            const assistantMessageId = Date.now();
+            const assistantMessageContainer = document.createElement('div');
+            assistantMessageContainer.className = 'message';
+            assistantMessageContainer.id = `msg-${assistantMessageId}`;
+            assistantMessageContainer.innerHTML = `
+                <div class="message-avatar assistant-avatar">K</div>
+                <div class="message-content">
+                    <div class="message-bubble assistant-bubble" id="bubble-${assistantMessageId}"></div>
+                    <div class="message-actions">
+                        <button class="action-btn retry-btn" title="重新生成" data-id="${assistantMessageId}">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+                    <div class="message-timestamp">${formatTime(new Date())}</div>
+                </div>
+            `;
+
+            const messageBubble = assistantMessageContainer.querySelector('.message-bubble');
+            messagesDiv.appendChild(assistantMessageContainer);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // 添加重试按钮事件
+            const retryBtn = assistantMessageContainer.querySelector('.retry-btn');
+            retryBtn.addEventListener('click', () => retryMessage(assistantMessageId));
+
+            // 添加到聊天历史
+            chatHistory.push({
+                id: messageId,
+                role: 'user',
+                content: messageText,
+                timestamp: new Date()
+            });
+
+            const assistantMessage = {
+                id: assistantMessageId,
+                role: 'assistant',
+                content: '',
+                timestamp: new Date()
+            };
+
+            chatHistory.push(assistantMessage);
+            lastMessageId = assistantMessageId;
+
+            // 处理流式响应
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            currentStream = {
+                reader: reader,
+                active: true
+            };
+
+            while (currentStream.active) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                let position;
+                while ((position = buffer.indexOf('\n\n')) >= 0) {
+                    const eventString = buffer.substring(0, position);
+                    buffer = buffer.substring(position + 2);
+
+                    if (eventString.startsWith('data: ')) {
+                        const jsonData = eventString.substring(6);
+                        try {
+                            const eventData = JSON.parse(jsonData);
+                            if (eventData.content) {
+                                messageBubble.textContent += eventData.content;
+
+                                // 更新聊天历史
+                                const index = chatHistory.findIndex(msg => msg.id === assistantMessageId);
+                                if (index !== -1) {
+                                    chatHistory[index].content = messageBubble.textContent;
+                                }
+                            } else if (eventData.role === 'assistant' && eventData.tool_calls) {
+                                const toolNames = eventData.tool_calls.map(tc => tc.name).join(', ');
+                                const toolsEl = document.createElement('div');
+                                toolsEl.className = 'message-tools';
+                                toolsEl.textContent = `调用工具: ${toolNames}`;
+                                messageBubble.appendChild(toolsEl);
+                            }
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        } catch (e) {
+                            console.error('解析错误:', e, jsonData);
+                            messageBubble.textContent += ` [数据解析错误] `;
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('请求失败:', error);
+            appendMessage(`请求错误: ${error.message}`, 'error');
+            loadingIndicator.style.display = 'none';
+        } finally {
+            currentStream = null;
+            sendButton.disabled = false;
+        }
+    }
+
+    // 重试消息
+    async function retryMessage(messageId) {
+        const messageIndex = chatHistory.findIndex(msg => msg.id === messageId);
+        if (messageIndex === -1 || messageIndex < 1) return;
+
+        // 获取用户消息
+        const userMessage = chatHistory[messageIndex - 1];
+
+        // 删除当前助手消息及之后的所有消息
+        const messagesToRemove = chatHistory.slice(messageIndex);
+        messagesToRemove.forEach(msg => {
+            const msgElement = document.getElementById(`msg-${msg.id}`);
+            if (msgElement) msgElement.remove();
+        });
+
+        chatHistory = chatHistory.slice(0, messageIndex);
+
+        // 显示重试指示器
+        const retryIndicator = document.createElement('span');
+        retryIndicator.className = 'retry-indicator';
+        retryIndicator.innerHTML = '<i class="fas fa-redo"></i> 重试中...';
+        const userMsgElement = document.getElementById(`msg-${userMessage.id}`);
+        if (userMsgElement) {
+            userMsgElement.querySelector('.message-content').appendChild(retryIndicator);
+        }
+
+        // 禁用发送按钮
+        sendButton.disabled = true;
+        loadingIndicator.style.display = 'flex';
+
+        try {
+            // 准备请求数据
+            const requestData = {
+                messages: [{ role: 'user', content: userMessage.content }],
+                config: {
+                    system_prompt: currentConfig.systemPrompt,
+                    model: currentConfig.model,
+                    max_search_results: currentConfig.maxSearchResults,
+                    database_path: currentConfig.databasePath,
+                    read_only: currentConfig.readOnly
+                }
+            };
+
+            // 发送请求
+            const response = await fetch('/api/astream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/event-stream'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            loadingIndicator.style.display = 'none';
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({
+                    error: "请求错误",
+                    details: `状态码: ${response.status}`
+                }));
+
+                const errorMsg = errorData.error || '请求失败';
+                const details = errorData.details || '';
+                appendMessage(`错误: ${errorMsg}. ${details}`, 'error');
+                sendButton.disabled = false;
+                return;
+            }
+
+            // 创建助手消息容器
+            const assistantMessageId = Date.now();
+            const assistantMessageContainer = document.createElement('div');
+            assistantMessageContainer.className = 'message';
+            assistantMessageContainer.id = `msg-${assistantMessageId}`;
+            assistantMessageContainer.innerHTML = `
+                <div class="message-avatar assistant-avatar">K</div>
+                <div class="message-content">
+                    <div class="message-bubble assistant-bubble" id="bubble-${assistantMessageId}"></div>
+                    <div class="message-actions">
+                        <button class="action-btn retry-btn" title="重新生成" data-id="${assistantMessageId}">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+                    <div class="message-timestamp">${formatTime(new Date())}</div>
+                </div>
+            `;
+
+            const messageBubble = assistantMessageContainer.querySelector('.message-bubble');
+            messagesDiv.appendChild(assistantMessageContainer);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // 添加重试按钮事件
+            const retryBtn = assistantMessageContainer.querySelector('.retry-btn');
+            retryBtn.addEventListener('click', () => retryMessage(assistantMessageId));
+
+            // 添加到聊天历史
+            const assistantMessage = {
+                id: assistantMessageId,
+                role: 'assistant',
+                content: '',
+                timestamp: new Date()
+            };
+
+            chatHistory.push(assistantMessage);
+            lastMessageId = assistantMessageId;
+
+            // 移除重试指示器
+            if (retryIndicator) retryIndicator.remove();
+
+            // 处理流式响应
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            currentStream = {
+                reader: reader,
+                active: true
+            };
+
+            while (currentStream.active) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                let position;
+                while ((position = buffer.indexOf('\n\n')) >= 0) {
+                    const eventString = buffer.substring(0, position);
+                    buffer = buffer.substring(position + 2);
+
+                    if (eventString.startsWith('data: ')) {
+                        const jsonData = eventString.substring(6);
+                        try {
+                            const eventData = JSON.parse(jsonData);
+                            if (eventData.content) {
+                                messageBubble.textContent += eventData.content;
+
+                                // 更新聊天历史
+                                const index = chatHistory.findIndex(msg => msg.id === assistantMessageId);
+                                if (index !== -1) {
+                                    chatHistory[index].content = messageBubble.textContent;
+                                }
+                            } else if (eventData.role === 'assistant' && eventData.tool_calls) {
+                                const toolNames = eventData.tool_calls.map(tc => tc.name).join(', ');
+                                const toolsEl = document.createElement('div');
+                                toolsEl.className = 'message-tools';
+                                toolsEl.textContent = `调用工具: ${toolNames}`;
+                                messageBubble.appendChild(toolsEl);
+                            }
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        } catch (e) {
+                            console.error('解析错误:', e, jsonData);
+                            messageBubble.textContent += ` [数据解析错误] `;
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('请求失败:', error);
+            appendMessage(`请求错误: ${error.message}`, 'error');
+            loadingIndicator.style.display = 'none';
+        } finally {
+            currentStream = null;
+            sendButton.disabled = false;
+        }
+    }
+
+    // 添加消息到UI
+    function appendMessage(text, type, messageId = Date.now()) {
+        const messageEl = document.createElement('div');
+        messageEl.className = `message ${type === 'user' ? 'message-user' : ''}`;
+        messageEl.id = `msg-${messageId}`;
+
+        const avatarClass = type === 'user' ? 'user-avatar' : 'assistant-avatar';
+        const bubbleClass = type === 'user' ? 'user-bubble' : 'assistant-bubble';
+        const label = type === 'user' ? '您' : 'Kiwi';
+        const avatarText = type === 'user' ? 'U' : 'K';
+
+        let actionsHTML = '';
+        if (type === 'assistant') {
+            actionsHTML = `
+                <div class="message-actions">
+                    <button class="action-btn retry-btn" title="重试" data-id="${messageId}">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        messageEl.innerHTML = `
+            <div class="message-avatar ${avatarClass}">${avatarText}</div>
+            <div class="message-content">
+                <div class="message-bubble ${bubbleClass}">${text}</div>
+                ${actionsHTML}
+                <div class="message-timestamp">${formatTime(new Date())}</div>
+            </div>
+        `;
+
+        messagesDiv.appendChild(messageEl);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        // 添加重试按钮事件
+        if (type === 'assistant') {
+            const retryBtn = messageEl.querySelector('.retry-btn');
+            retryBtn.addEventListener('click', () => retryMessage(messageId));
+        }
+
+        // 添加到聊天历史
+        chatHistory.push({
+            id: messageId,
+            role: type,
+            content: text,
+            timestamp: new Date()
+        });
+
+        lastMessageId = messageId;
+    }
+
+    // 格式化时间
+    function formatTime(date) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // 初始化应用
+    init();
+</script>
+</body>
+</html>
