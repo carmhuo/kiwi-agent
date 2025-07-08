@@ -1,0 +1,565 @@
+openapi: 3.0.0
+info:
+  title: Kiwi DataAgent API
+  version: 1.0.0
+  description: API for enterprise DataAgent project Kiwi
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "user1"
+        email:
+          type: string
+          example: "user1@example.com"
+        roles:
+          type: array
+          items:
+            type: string
+          example: ["项目管理员"]
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "销售分析"
+        description:
+          type: string
+          example: "销售数据仪表盘"
+        owner_id:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-07-04T10:30:00Z"
+
+    DataSource:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "生产数据库"
+        type:
+          type: string
+          example: "MySQL"
+        connection_config:
+          type: object
+          example: {"host": "db.example.com", "port": 3306}
+
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "销售数据集"
+        data_source_id:
+          type: integer
+          example: 1
+        configuration:
+          type: object
+          example: {"tables": ["sales"], "columns": ["product", "amount"]}
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "SQL生成Agent"
+        type:
+          type: string
+          example: "TEXT2SQL"
+        config:
+          type: object
+          example: {"model": "gpt-4", "temperature": 0.7}
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "Q3销售分析"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-07-04T11:00:00Z"
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        content:
+          type: string
+          example: "显示2023年Q3各产品销量"
+        role:
+          type: string
+          example: "user"
+        sql_query:
+          type: string
+          example: "SELECT product, SUM(amount) FROM sales WHERE quarter='Q3' GROUP BY product"
+        report_data:
+          type: object
+          example: {"chart_type": "bar", "data": [{"product":"A","sales":1000}]}
+        feedback:
+          type: integer
+          example: 1
+
+    Feedback:
+      type: object
+      properties:
+        feedback:
+          type: integer
+          description: 1=喜欢, 0=不喜欢
+          example: 1
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: "Item not found"
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "user1"
+        password:
+          type: string
+          example: "pass123"
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          example: "bearer"
+
+paths:
+  /auth/login:
+    post:
+      summary: 用户登录
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        '401':
+          description: 无效凭证
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      summary: 用户登出
+      tags: [Authentication]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功登出
+        '401':
+          description: 未授权
+
+  /auth/me:
+    get:
+      summary: 获取当前用户信息
+      tags: [Authentication]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 用户信息
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        '401':
+          description: 未授权
+
+  /projects:
+    get:
+      summary: 获取用户项目列表
+      tags: [Projects]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 项目列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+
+    post:
+      summary: 创建新项目
+      tags: [Projects]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: 项目创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{project_id}:
+    get:
+      summary: 获取项目详情
+      tags: [Projects]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 项目详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        '404':
+          description: 项目未找到
+
+  /projects/{project_id}/data-sources:
+    get:
+      summary: 获取项目数据源列表
+      tags: [Data Sources]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 数据源列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DataSource"
+
+    post:
+      summary: 创建新数据源
+      tags: [Data Sources]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataSource"
+      responses:
+        '201':
+          description: 数据源创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataSource"
+
+  /projects/{project_id}/datasets:
+    post:
+      summary: 创建数据集
+      tags: [Datasets]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Dataset"
+      responses:
+        '201':
+          description: 数据集创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dataset"
+
+  /datasets/{dataset_id}:
+    get:
+      summary: 获取数据集详情
+      tags: [Datasets]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: dataset_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 数据集详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dataset"
+
+  /projects/{project_id}/agents:
+    post:
+      summary: 创建Agent
+      tags: [Agents]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Agent"
+      responses:
+        '201':
+          description: Agent创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  /projects/{project_id}/conversations:
+    post:
+      summary: 创建新对话会话
+      tags: [Conversations]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+      responses:
+        '201':
+          description: 会话创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{conversation_id}/messages:
+    get:
+      summary: 获取对话历史消息
+      tags: [Conversations]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 消息列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+
+    post:
+      summary: 发送消息并获取响应
+      tags: [Conversations]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                agent_id:
+                  type: integer
+      responses:
+        '200':
+          description: Agent响应
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/{message_id}/feedback:
+    post:
+      summary: 提交消息反馈
+      tags: [Feedback]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: message_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Feedback"
+      responses:
+        '204':
+          description: 反馈提交成功
+
+  /projects/{project_id}/members:
+    post:
+      summary: 添加项目成员
+      tags: [Permissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                role_id:
+                  type: integer
+      responses:
+        '201':
+          description: 成员添加成功
+
+  /projects/{project_id}/members/{user_id}:
+    delete:
+      summary: 移除项目成员
+      tags: [Permissions]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 成员移除成功
+
+security:
+  - BearerAuth: []

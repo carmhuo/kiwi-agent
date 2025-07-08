@@ -32,7 +32,10 @@
 - 赋能业务人员和数据分析师
 - 加速数据洞察与决策支持
 
-**核心目标**：实现自然语言到数据分析的智能转换，提供端到端的数据洞察解决方案。
+Kiwi借助GenAI技术简化数据访问与分析流程。 其数据分析代理（Data Analysis
+Agent）支持用户以自然语言提问，系统会自动将这些提问转化为针对数据域(Domain)的精准查询。
+
+**核心目标**： 实现自然语言到数据分析的智能转换，提供端到端的数据洞察解决方案。
 
 ### 1.2 功能概览
 
@@ -245,79 +248,101 @@ GROUP BY product
 - 连接测试功能
 - 数据预览功能
 
+### 3.2.3 数据集配置页面
+
+```markdown
+[数据集配置向导]
+步骤1：选择数据源
+☑ MySQL (生产库) [别名: mysql_prod]
+☑ PostgreSQL (客户库) [别名: pg_customers]
+☐ SQLite (本地缓存)
+
+步骤2：表映射配置
+| 源数据源 | 源表名 | 目标表名 | 字段筛选 |
+|----------------|----------|-------------|---------------|
+| mysql_prod | orders | sales_orders| id,amount,date|
+| pg_customers | users | customers | id,name,email |
+
+步骤3：关系配置
+[图形化关系编辑区]
+orders.cust_id → customers.id
+```
+
 ## 4. 后端系统设计
 
 ### 4.1 系统架构
 
-#### 4.1.1 系统上下文
+Kiwi数据智能体架构具备以下特点：
+
+- 运用多个智能体（GenAI 智能体）和嵌入技术（embeddings）来理解用户以自然语言提出的查询。
+- 借助领域嵌入、指标与维度元数据嵌入、**维度数据嵌入**，以及关于这些元素的定义信息和所使用术语的分类体系。
+- 通过示例和反馈循环不断优化其对查询的理解能力和准确性。
+- 将自然语言查询转化为可针对领域（Domain）执行的查询，并利用执行层来获取查询结果。
+
+#### 4.1.2 系统上下文
 
 ```mermaid
 graph TD
 %% 用户角色
-    customer["业务分析师<br>AI对话/查看报表"] --> Kiwi
-    admin["数据工程师<br>数据源接入/创建数据集"] --> Kiwi
+    biz_customer["业务用户"] -->|决策支持| Kiwi
+    ba_customer["业务分析师"] -->|数据洞察| Kiwi
+    admin["数据工程师"] -->|数据源接入/创建数据集| Kiwi
 %% 外部系统
-    Kiwi["Kiwi数据智能分析平台"] --> DataWarehouse["数据仓库系统<br>(提供主题数据)"]
-    Kiwi --> FilePlatform["文件服务<br>(支持parquet/json/csv)"]
-    Kiwi --> DatAPI["关系数据库"]
+    Kiwi["Kiwi数据智能分析平台"] -->|data ingest| DataWarehouse["数据仓库<br>(提供主题数据)"]
+    Kiwi -->|data ingest| FilePlatform["对象存储<br>(支持parquet/json/...)"]
+    Kiwi -->|data ingest| DatAPI["数据集市<br>OLAP/sqlite/mysql/..."]
 ```
 
-#### 4.1.1 容器图
+#### 4.1.3 逻辑架构
+
+#### 4.1.4 技术架构
 
 ```mermaid
 graph TD
-    %% ========== 用户角色 ==========
-    customer["业务分析师<br>AI对话/查看报表"] --> Frontend
-    admin["数据工程师<br>数据源接入/创建数据集"] --> Frontend
-    
-    %% ========== 前端系统 ==========
-    Frontend["Web前端<br>Vue.js + DuckDB-Wasm"] 
-    
-    %% ========== 核心服务容器 ==========
+%% ========== 用户角色 ==========
+    biz_customer["业务用户"] -->|AI对话/获取洞察| Frontend
+    ba_customer["业务分析师"] -->|AI对话/获取洞察| Frontend
+    admin["数据工程师"] -->|数据源接入/创建数据集| Frontend
+%% ========== 前端系统 ==========
+    Frontend["Web前端<br>Vue + H5 + Nginx [+ DuckDB-Wasm]"]
+%% ========= 网关 ===========
+    Gateway["API网关"]
+%% ========== 核心服务容器 ==========
     subgraph Kiwi_Core["Kiwi 核心服务"]
-        Backend["后端服务<br>ASGI Uvicorn + FastAPI"]
-        Database["业务数据库<br>sqlite/PostgreSQL"]
+        Backend["后端服务<br>Guicorn + ASGI Uvicorn + FastAPI"]
+        Database["业务数据库<br>Sqlite/PostgreSQL"]
         VectorDB["向量数据库<br>Chroma/Milvus"]
         LangchainService["Agent服务<br>LLM + LangChain"]
         DuckDB["DuckDB 分析引擎<br>（嵌入式联邦查询）"]
     end
-    
-    %% ========== 数据流连接 ==========
-    Frontend --> Backend
+
+%% ========== 数据流连接 ==========
+    Frontend --> Gateway
+    Gateway --> Backend
     Backend --> Database
     Backend --> VectorDB
     Backend --> LangchainService
     LangchainService --> DuckDB
-    
-    %% ========== 外部系统集成 ==========
-    DuckDB --> datawarehouse["数据仓库系统<br>Hive/OLAP"]
-    DuckDB --> fileplatform["文件服务<br>parquet/csv/excel/json"]
-    DuckDB --> rdbms["关系数据库<br>MySQL/PostgreSQL"]
-    
-    %% ========== 联邦查询示意 ==========
-    DuckDB -.->|联邦查询| ExternalDB["外部数据库系统"]
-    
-    %% ========== 图例说明 ==========
-    classDef external fill:#f9f,stroke:#333,stroke-dasharray: 5 5
-    classDef core fill:#e6f7ff,stroke:#1890ff
-    classDef db fill:#f6ffed,stroke:#52c41a
-    
+%% ========== 外部系统集成 ==========
+    DuckDB --> DataWarehouse["数据仓库<br>Hive/OLAP"]
+    DuckDB --> FilePlatform["对象存储<br>S3/OSS"]
+    DuckDB --> rdbms["OLAP引擎<br>StarRocks/Doris/Clickhouse"]
+%% ========== 联邦查询示意 ==========
+    DuckDB -.->|联邦查询| ExternalDB["RDBMS"]
+%% ========== 图例说明 ==========
+    classDef external fill: #f9f, stroke: #333, stroke-dasharray: 5 5
+    classDef core fill: #e6f7ff, stroke: #1890ff
+    classDef db fill: #f6ffed, stroke: #52c41a
     class Kiwi_Core core
-    class datawarehouse,fileplatform,rdbms,ExternalDB external
-    class Database,VectorDB db
+class DataWarehouse,FilePlatform,rdbms,ExternalDB external
+class Database,VectorDB db
 ```
 
-联邦查询机制
+- FastAPI + Uvicorn 提供高性能异步 API
+- Gunicorn 负责多进程管理，提高并发
+- Nginx 反向代理，支持负载均衡 & HTTPS
 
-```mermaid
-graph LR
-    DuckDB -->|JDBC/ODBC| MySQL
-    DuckDB -->|HTTP API| Snowflake
-    DuckDB -->|文件接口| S3["Amazon S3"]
-    DuckDB -->|本地读取| CSV[本地CSV文件]
-```
-
-#### 4.1.1 组件图
+#### 4.1.5 组件图
 
 ```mermaid
 graph TD
@@ -343,16 +368,19 @@ graph TD
     end
 
     subgraph "SQLAgent"
-        START("START")
+        SQL_START("START")
         SQL_Agent["LLM + Prompt"]
         DBTools["ToolCall"]
-        END("END")
+        SQL_END("END")
     end
 
     subgraph "RetrievalAgent"
-        Input["Question"]
-        Retrieval_Agent["LLM + Prompt"]
+        Retrieval_Start["START"]
+        Generate_Query["generate_query"]
+        Retrieve["Retrieve"]
+        Response["LLM + Prompt"]
         VectorDB["VectorDB"]
+        Retrieval_End["END"]
     end
 
 %% 数据流
@@ -364,14 +392,102 @@ graph TD
     Text2SQL --> LLMOrchestrator
     LLMOrchestrator --> QueryEngine
     LLMOrchestrator --> SQL_Agent
-    START --> SQL_Agent --> DBTools
+    SQL_START --> SQL_Agent --> DBTools
     DBTools --> SQL_Agent
-    SQL_Agent --> END
-    LLMOrchestrator --> Retrieval_Agent
-    Retrieval_Agent --> VectorDB
+    SQL_Agent --> SQL_END
+    LLMOrchestrator --> Generate_Query
+    Retrieval_Start --> Generate_Query
+    Generate_Query --> Retrieve
+    Retrieve --> VectorDB
+    Retrieve --> Response
+    Response --> Retrieval_End
 ```
 
-#### 4.1.2 代码图
+##### 数据集配置工作流
+
+```mermaid
+flowchart TB
+    A[开始] --> B[选择数据集]
+    B --> C[添加数据源]
+    C --> D{设置别名}
+    D --> E[配置表映射]
+    E --> F[定义关系]
+    F --> G[保存配置]
+    G --> H[结束]
+```
+
+```mermaid
+graph TD
+    DS1[数据集1] -->|别名: db1| MySQL_A
+    DS1 -->|别名: db2| MySQL_B
+    DS2[数据集2] -->|别名: db1| PostgreSQL
+    DS2 -->|别名: db2| MySQL_A
+```
+
+- 不同数据集可以使用相同别名指向不同数据源
+
+- 同一数据源在不同数据集可以使用不同别名
+
+##### Agent管理流程：
+
+##### DuckDB联邦查询扩展数据源：
+
+```mermaid
+graph LR
+    DuckDB -->|ATTACH| MySQL
+    DuckDB -->|ATTACH| PostgreSQL
+    DuckDB -->|ATTACH| SQLite
+    DuckDB -->|ATTACH| DuckDBFile["duckdb database file"]
+    DuckDB -->|HTTPFS| S3["对象存储,S3,..."]
+    DuckDB -->|HTTPFS| File[远程文件,parquet,avro,excel,csv]
+    DuckDB -->|Register| DataFrame["pandas DataFrame"]
+```
+
+DuckDB联邦查询流程：
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Backend
+    participant DuckDB
+    User ->> Backend: 登陆
+    Backend ->> Backend: 创建Session
+    User ->> Backend: 执行查询请求
+    Backend ->> Backend: 获取查询数据集信息
+    Backend ->> DuckDB: 实例初始化，并加载数据集
+    DuckDB ->> DuckDB: ATTACH 'host= user= port=0 database=mysql' AS ${ds1_alise} (TYPE mysql, READ_ONLY);
+    DuckDB ->> DuckDB: ATTACH '' AS ${ds2_alise} (TYPE postgres, READ_ONLY);
+    DuckDB ->> DuckDB: CREATE VIEW sales_orders AS SELECT * FROM ${ds1_alise}.orders
+    DuckDB ->> DuckDB: CREATE VIEW customers AS SELECT * FROM ${ds2_alise}.users
+    Backend ->> DuckDB: EXECUTE federated_query
+    DuckDB ->> Backend: 返回结果
+    Backend ->> User: 格式化为图表+文本
+```
+
+- 创建session，创建map,记录数据集与duckdb实例关系
+- 查看数据集对应的duckdb实例是否存在，不存在创建一个新的duckdb实例
+- duckdb实例初始化，加载数据集中的数据库与表
+    - Non-Materialization Attach方式访问远程数据库
+    - Materialization： 创建内存表，将远程数据库表数据同步到duckdb实例内存中
+
+> 注意： 确保在duckdb实例中数据库名称唯一
+
+##### 权限控制流程
+
+**数据集权限控制**
+
+```mermaid
+graph TD
+    A[查询请求] --> B{用户有数据集权限}
+    B -->|是| C{检查各数据源权限}
+    C -->|全部通过| D[执行联邦查询]
+    C -->|拒绝| E[返回权限错误]
+    B -->|否| F[返回权限错误]
+```
+
+#### 4.1.6 代码图
+
+##### API接口
 
 ```mermaid
 classDiagram
@@ -399,6 +515,74 @@ classDiagram
     FastAPI --> DatabaseService: 数据访问
     FastAPI --> LangchainAgent: 代理调用
     LangchainAgent --> DuckDB: 执行查询
+```
+
+##### 联邦查询引擎
+
+部分代码（Pseudo）:
+
+```text
+class FederatedQueryEngine:
+    def execute(self, dataset_id: int, sql: str):
+        # 获取数据集配置
+        dataset = get_dataset(dataset_id)
+        
+        # 获取关联数据源
+        data_sources = get_dataset_sources(dataset_id)
+        
+        # 创建DuckDB连接
+        conn = duckdb.connect()
+        
+        # 附加所有数据源
+        for ds in data_sources:
+            conn.execute(f"""
+                ATTACH '{self._build_connection_string(ds)}' 
+                AS {ds.alias} (TYPE {ds.type})
+            """)
+        
+        # 创建表映射视图
+        for mapping in dataset.config["table_mappings"]:
+            conn.execute(f"""
+                CREATE VIEW {mapping['target_name']} AS 
+                SELECT * FROM {mapping['source_alias']}.{mapping['source_table']}
+            """)
+        
+        # 执行查询
+        return conn.execute(sql).fetchdf()
+    
+    def _build_connection_string(self, data_source):
+        config = json.loads(data_source.connection_config)
+        if data_source.type == "mysql":
+            return f"mysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
+        # 其他数据库类型处理...
+```
+
+##### 权限检验
+
+数据集权限验证部分代码（Pseudo）
+
+```text
+def check_query_permission(user, dataset_id, sql):
+    # 1. 验证数据集权限
+    if not has_dataset_access(user, dataset_id):
+        raise PermissionDenied("No dataset access")
+    
+    # 2. 获取数据集关联的所有数据源
+    data_sources = get_dataset_sources(dataset_id)
+    
+    # 3. 解析SQL中使用的表
+    used_tables = parse_sql_tables(sql)
+    
+    # 4. 验证每个表对应的数据源权限
+    for table in used_tables:
+        ds_alias = table.split('.')[0]  # 从db.table中提取别名
+        data_source = next(ds for ds in data_sources if ds.alias == ds_alias)
+        
+        if not has_data_source_access(user, data_source.id):
+            # 权限不足时进行脱敏处理
+            sql = apply_data_masking(sql, table)
+    
+    return sql
 ```
 
 ### 4.2 核心API概览
@@ -465,8 +649,8 @@ erDiagram
     USER ||--o{ PROJECT_MEMBER: "属于"
     ROLE ||--o{ PROJECT_MEMBER: "具有角色"
     PROJECT ||--o{ DATA_SOURCE: "包含"
-    DATA_SOURCE ||--o{ DATASET_SOURCE: "被用于"
-    DATASET ||--o{ DATASET_SOURCE: "包含"
+    DATA_SOURCE ||--o{ DATASET_DATA_SOURCE: "引用"
+    DATASET ||--o{ DATASET_DATA_SOURCE: "包含"
     PROJECT ||--o{ DATASET: "包含"
     PROJECT ||--o{ AGENT: "包含"
     PROJECT ||--o{ CONVERSATION: "包含"
@@ -482,9 +666,9 @@ erDiagram
 
 **用户与角色关系：**
 
-- **多对多关系（USER ⇄ ROLE）**
+- 多对多关系（USER ⇄ ROLE）
 
-- **通过USER_ROLE关联表实现**
+- 通过USER_ROLE关联表实现
 
 **项目结构：**
 
@@ -499,10 +683,13 @@ graph TD
 **项目成员关系：**
 
 - 项目与用户多对多关系
-
 - 通过PROJECT_MEMBER表管理
-
 - 每个成员在项目中有一个角色
+
+**数据集与数据源关系：**
+
+- 多对多关系
+- 通过DATASET_DATA_SOURCE表管理
 
 **对话系统关系：**
 
@@ -570,32 +757,61 @@ graph LR
 
 ##### 数据集表 (dataset)
 
-| 字段             | 类型           | 描述          | 约束                        |
-|:---------------|:-------------|:------------|:--------------------------|
-| id             | INTEGER      | 主键          | PK, AI                    |
-| project_id     | INTEGER      | 所属项目ID      | FK → project(id)          |
-| name           | VARCHAR(100) | 数据集名称       | NOT NULL                  |
-| data_source_id | INTEGER      | 数据源ID       | FK → data_source(id)      |
-| configuration  | TEXT         | 数据集配置(JSON) | NOT NULL                  |
-| created_by     | INTEGER      | 创建者ID       | FK → user(id)             |
-| created_at     | TIMESTAMP    | 创建时间        | DEFAULT CURRENT_TIMESTAMP |
-| updated_at     | TIMESTAMP    | 更新时间        | DEFAULT CURRENT_TIMESTAMP |
+| 字段            | 类型           | 描述          | 约束                        |
+|:--------------|:-------------|:------------|:--------------------------|
+| id            | INTEGER      | 主键          | PK, AI                    |
+| project_id    | INTEGER      | 所属项目ID      | FK → project(id)          |
+| name          | VARCHAR(100) | 数据集名称       | NOT NULL                  |
+| configuration | TEXT         | 数据集配置(JSON) | NOT NULL                  |
+| created_by    | INTEGER      | 创建者ID       | FK → user(id)             |
+| created_at    | TIMESTAMP    | 创建时间        | DEFAULT CURRENT_TIMESTAMP |
+| updated_at    | TIMESTAMP    | 更新时间        | DEFAULT CURRENT_TIMESTAMP |
 
 configuration样例
 
 ```json
 {
-  "source_ids": [
-    1,
-    2,
-    3
+  "tables": [
+    {
+      "source_id": 1,
+      // 此处的source_id由关联表提供，这里记录每个表所属的数据源
+      "table_name": "orders",
+      "columns": [
+        "id",
+        "user_id",
+        "amount"
+      ]
+    },
+    {
+      "source_id": 2,
+      "table_name": "users",
+      "columns": [
+        "id",
+        "name",
+        "email"
+      ]
+    }
+  ],
+  "table_mappings": [
+    {
+      "source_alias": "mysql_orders",
+      // 对应DATASET_DATA_SOURCE.alias
+      "source_table": "orders",
+      "target_name": "sales_orders"
+      // 数据集内表名
+    },
+    {
+      "source_alias": "pg_customers",
+      "source_table": "users",
+      "target_name": "customers"
+    }
   ],
   "relationships": [
     {
-      "source_table": "orders",
-      "source_column": "user_id",
-      "target_table": "users",
-      "target_column": "id",
+      "left_table": "sales_orders",
+      "left_column": "user_id",
+      "right_table": "customers",
+      "right_column": "id",
       "type": "one-to-many"
     }
   ]
@@ -603,13 +819,50 @@ configuration样例
 
 ```
 
-##### 数据集数据源表(dataset_source)
+##### 数据集数据源表(dataset_data_source)
 
-| 字段             | 类型      | 描述    | 约束                              |
-|:---------------|:--------|:------|:--------------------------------|
-| dataset_id     | INTEGER | 数据集ID | FK → dataset(id)                |
-| data_source_id | INTEGER | 数据源ID | FK → data_source(id)            |
-|                |         |       | PK (dataset_id, data_source_id) |
+| 字段             | 类型           | 描述    | 约束                     |
+|:---------------|:-------------|:------|:-----------------------|
+| dataset_id     | INTEGER      | 数据集ID | FK → dataset(id)       |
+| data_source_id | INTEGER      | 数据源ID | FK → data_source(id)   |
+| alias          | VARCHAR(100) | 数据源别名 | UNIQUE, NOT NULL       |
+|                |              |       | PK (dataset_id, alias) |
+
+增加数据源别名，
+
+1. **解决多数据源同名冲突**
+    - 当多个数据源中存在相同表名（如`users`）时，在联邦查询中直接使用表名会产生冲突
+    - 别名允许为每个数据源分配唯一标识符，例如：`mysql_prod.users`, `pg_backup.users`
+
+2. **简化数据集配置**
+    - 在数据集的表映射配置中，通过别名引用数据源比使用数据源ID更直观
+    - 别名在配置中更易读且稳定（即使数据源ID变化，别名可保持不变）
+3. **支持数据源替换**
+    - 当需要切换数据源（如从测试库切到生产库）时，只需修改DATASET_DATA_SOURCE中数据源的指向，而数据集配置无需改变（因为别名保持不变）
+4. **查询可读性提升**\
+    - 在生成的SQL中使用别名更清晰：
+   ```sql
+   SELECT * FROM mysql_prod.orders 
+   JOIN pg_backup.users ON ...
+   ```
+5. **权限隔离**：
+    - 别名可作为安全层，隐藏真实数据源信息
+
+**别名管理规则**
+
+1. **唯一性约束**： 确保在同一个数据集内别名唯一
+2. **默认别名生成**：
+
+- 创建时自动生成（若未提供）：
+
+   ```python
+   def generate_alias(data_source_name):
+    return f"ds_{sanitize_name(data_source_name)}_{short_uuid()}"
+   ```
+
+3. **修改限制**
+    - 别名创建后不允许修改（避免影响已配置的数据集）
+    - 如需变更，需先解除所有数据集的关联
 
 ##### Agent表 (agent)
 
