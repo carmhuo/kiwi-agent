@@ -6,7 +6,7 @@
 
 - **文档编号**：PRD001
 - **产品名称**：Kiwi
-- **版本号**：1.1
+- **版本号**：1.2
 - **编写人**：kiwi团队
 - **编写日期**：2025-07-04
 - **审核人**：kiwi团队
@@ -18,7 +18,7 @@
 |-----|------------|--------|-------------|
 | 1.0 | 2025-07-04 | Kiwi团队 | 初始版本        |
 | 1.1 | 2025-07-04 | Kiwi团队 | 增加Agent版本管理 |
-| ... | ...        | ...    | ...         |
+| 1.2 | 2025-07-04 | Kiwi团队 | 补充非功能性需求    |
 
 ---
 
@@ -107,6 +107,7 @@ graph TD
 * 表映射关系
 * 字段定义
 * 数据关系描述
+* 敏感字段标记,并在查询结果中自动应用脱敏模板
 
 ### 2.5 Agent管理系统
 
@@ -138,6 +139,16 @@ flowchart TD
     K --> M
 ```
 
+**错误类型分类处理**
+
+| 错误类型    | 错误代码              | 处理策略      | 用户提示           |
+|---------|-------------------|-----------|----------------|
+| SQL生成失败 | AGENT_FAILURE     | 重试3次      | 智能解析失败，请尝试简化问题 |
+| 查询超时    | QUERY_TIMEOUT     | 触发熔断+降级查询 | 查询超时，已返回简化结果   |
+| 数据库连接失败 | DB_CONN_FAIL      | 切换备用数据源   | 系统维护中，已切换备用数据  |
+| 权限不足    | PERMISSION_DENIED | 终止查询      | 您无权访问此数据       |
+| 语法错误    | SQL_SYNTAX_ERROR  | 日志记录+终止   | 内部错误，已通知管理员    |
+
 **序列图**
 
 ```mermaid
@@ -168,6 +179,24 @@ sequenceDiagram
 - ❌ 完全错误
 
 - 💡 建议改进
+
+**故障恢复流程**
+
+```mermaid
+flowchart TD
+    A[检测到持续失败] --> B{错误类型}
+    B -->|SQL生成失败| C[切换备用Agent模型]
+    B -->|查询超时| D[启动熔断机制]
+    B -->|数据库故障| E[切换只读副本]
+    C --> F[通知运维团队]
+    D --> F
+    E --> F
+    F --> G[根本原因分析]
+    G --> H[修复方案]
+    H --> I[验证修复]
+    I --> J[恢复服务]
+    J --> K[生成事故报告]
+```
 
 ### 2.7 权限管理系统
 
@@ -279,7 +308,7 @@ Kiwi数据智能体架构具备以下特点：
 - 通过示例和反馈循环不断优化其对查询的理解能力和准确性。
 - 将自然语言查询转化为可针对领域（Domain）执行的查询，并利用执行层来获取查询结果。
 
-#### 4.1.2 系统上下文
+#### 4.1.1 系统上下文
 
 ```mermaid
 graph TD
@@ -293,9 +322,50 @@ graph TD
     Kiwi -->|data ingest| DatAPI["数据集市<br>OLAP/sqlite/mysql/..."]
 ```
 
-#### 4.1.3 逻辑架构
+#### 4.1.2 逻辑架构
 
-#### 4.1.4 技术架构
+```mermaid
+graph TD
+    subgraph user["最终用户"]
+        direction TB
+        biz_user[业务用户]
+        ba["业务分析师"]
+        de["数据工程师"]
+    end
+
+    subgraph interface_layer["用户接入层"]
+        web_ui["WEB_UI"]
+    end
+
+    subgraph app_layer["应用逻辑层"]
+        conversation("对话管理")
+        data_source("数据源管理")
+        dataset("数据集管理")
+        report("报表展示")
+        agent("Agent管理")
+    end
+    subgraph service_layer["服务逻辑层"]
+        file_service("文件服务")
+        email_service["邮件服务"]
+    end
+
+    subgraph source_layer["数据源"]
+        data_warehouse["数据仓库"]
+        data_market["数据集市"]
+        olap_engine["OLAP引擎"]
+        rdbms["关系数据库"]
+        os["对象存储"]
+    end
+
+    user --> interface_layer
+    interface_layer --> app_layer
+    app_layer --> service_layer
+    service_layer --> source_layer
+
+
+```
+
+#### 4.1.3 技术架构
 
 ```mermaid
 graph TD
@@ -310,280 +380,42 @@ graph TD
 %% ========== 核心服务容器 ==========
     subgraph Kiwi_Core["Kiwi 核心服务"]
         Backend["后端服务<br>Guicorn + ASGI Uvicorn + FastAPI"]
-        Database["业务数据库<br>Sqlite/PostgreSQL"]
-        VectorDB["向量数据库<br>Chroma/Milvus"]
+        Database[("业务数据库<br>Sqlite/PostgreSQL")]
         LangchainService["Agent服务<br>LLM + LangChain"]
         DuckDB["DuckDB 分析引擎<br>（嵌入式联邦查询）"]
+        VectorDB[("向量数据库<br>Chroma/Milvus")]
     end
-
-%% ========== 数据流连接 ==========
+%% ========== 外部数据源 ==========
+    subgraph data_source["数据源"]
+        DataWarehouse[("数据仓库<br>Hive/OLAP")]
+        FilePlatform[("对象存储<br>S3/OSS")]
+        OLAP[("OLAP引擎<br>StarRocks/Doris/Clickhouse")]
+        OtherDBs[("RDBMS")]
+    end
+%% ========== 数据流 ==========    
     Frontend --> Gateway
     Gateway --> Backend
     Backend --> Database
     Backend --> VectorDB
     Backend --> LangchainService
     LangchainService --> DuckDB
-%% ========== 外部系统集成 ==========
-    DuckDB --> DataWarehouse["数据仓库<br>Hive/OLAP"]
-    DuckDB --> FilePlatform["对象存储<br>S3/OSS"]
-    DuckDB --> rdbms["OLAP引擎<br>StarRocks/Doris/Clickhouse"]
-%% ========== 联邦查询示意 ==========
-    DuckDB -.->|联邦查询| ExternalDB["RDBMS"]
+    DuckDB -.->|联邦查询| data_source
 %% ========== 图例说明 ==========
-    classDef external fill: #f9f, stroke: #333, stroke-dasharray: 5 5
-    classDef core fill: #e6f7ff, stroke: #1890ff
-    classDef db fill: #f6ffed, stroke: #52c41a
-    class Kiwi_Core core
-class DataWarehouse,FilePlatform,rdbms,ExternalDB external
-class Database,VectorDB db
+%%    classDef external fill: #f9f, stroke: #333, stroke-dasharray: 5 5
+%%    classDef core fill: #e6f7ff, stroke: #1890ff
+%%    classDef db fill: #f6ffed, stroke: #52c41a
+%%    class Kiwi_Core core
+%%    class DataWarehouse, FilePlatform, rdbms, ExternalDB external
+%%    class Database, VectorDB db
 ```
 
 - FastAPI + Uvicorn 提供高性能异步 API
 - Gunicorn 负责多进程管理，提高并发
 - Nginx 反向代理，支持负载均衡 & HTTPS
 
-#### 4.1.5 组件图
+#### 4.1.4 集成架构
 
-```mermaid
-graph TD
-    subgraph "Web前端"
-        Dashboard["问数"]
-        DatasetManager["数据集管理UI"]
-    end
-
-    subgraph "网关服务-南北"
-        AuthAPI["认证授权模块"]
-    end
-
-    subgraph "后端API服务"
-        LLMOrchestrator["Agent协调器"]
-        Text2SQL["Text2SQL"]
-        QueryEngine["DuckDB联邦查询引擎"]
-    end
-
-    subgraph "外部数据源"
-        DataWarehouse["数据仓库"]
-        FilePlatform["文件服务"]
-        Database["关系数据库"]
-    end
-
-    subgraph "SQLAgent"
-        SQL_START("START")
-        SQL_Agent["LLM + Prompt"]
-        DBTools["ToolCall"]
-        SQL_END("END")
-    end
-
-    subgraph "RetrievalAgent"
-        Retrieval_Start["START"]
-        Generate_Query["generate_query"]
-        Retrieve["Retrieve"]
-        Response["LLM + Prompt"]
-        VectorDB["VectorDB"]
-        Retrieval_End["END"]
-    end
-
-%% 数据流
-    Dashboard -->|API调用| AuthAPI
-    AuthAPI --> Text2SQL
-    QueryEngine --> DataWarehouse
-    QueryEngine --> FilePlatform
-    QueryEngine --> Database
-    Text2SQL --> LLMOrchestrator
-    LLMOrchestrator --> QueryEngine
-    LLMOrchestrator --> SQL_Agent
-    SQL_START --> SQL_Agent --> DBTools
-    DBTools --> SQL_Agent
-    SQL_Agent --> SQL_END
-    LLMOrchestrator --> Generate_Query
-    Retrieval_Start --> Generate_Query
-    Generate_Query --> Retrieve
-    Retrieve --> VectorDB
-    Retrieve --> Response
-    Response --> Retrieval_End
-```
-
-##### 数据集配置工作流
-
-```mermaid
-flowchart TB
-    A[开始] --> B[选择数据集]
-    B --> C[添加数据源]
-    C --> D{设置别名}
-    D --> E[配置表映射]
-    E --> F[定义关系]
-    F --> G[保存配置]
-    G --> H[结束]
-```
-
-```mermaid
-graph TD
-    DS1[数据集1] -->|别名: db1| MySQL_A
-    DS1 -->|别名: db2| MySQL_B
-    DS2[数据集2] -->|别名: db1| PostgreSQL
-    DS2 -->|别名: db2| MySQL_A
-```
-
-- 不同数据集可以使用相同别名指向不同数据源
-
-- 同一数据源在不同数据集可以使用不同别名
-
-##### Agent管理流程：
-
-##### DuckDB联邦查询扩展数据源：
-
-```mermaid
-graph LR
-    DuckDB -->|ATTACH| MySQL
-    DuckDB -->|ATTACH| PostgreSQL
-    DuckDB -->|ATTACH| SQLite
-    DuckDB -->|ATTACH| DuckDBFile["duckdb database file"]
-    DuckDB -->|HTTPFS| S3["对象存储,S3,..."]
-    DuckDB -->|HTTPFS| File[远程文件,parquet,avro,excel,csv]
-    DuckDB -->|Register| DataFrame["pandas DataFrame"]
-```
-
-DuckDB联邦查询流程：
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Backend
-    participant DuckDB
-    User ->> Backend: 登陆
-    Backend ->> Backend: 创建Session
-    User ->> Backend: 执行查询请求
-    Backend ->> Backend: 获取查询数据集信息
-    Backend ->> DuckDB: 实例初始化，并加载数据集
-    DuckDB ->> DuckDB: ATTACH 'host= user= port=0 database=mysql' AS ${ds1_alise} (TYPE mysql, READ_ONLY);
-    DuckDB ->> DuckDB: ATTACH '' AS ${ds2_alise} (TYPE postgres, READ_ONLY);
-    DuckDB ->> DuckDB: CREATE VIEW sales_orders AS SELECT * FROM ${ds1_alise}.orders
-    DuckDB ->> DuckDB: CREATE VIEW customers AS SELECT * FROM ${ds2_alise}.users
-    Backend ->> DuckDB: EXECUTE federated_query
-    DuckDB ->> Backend: 返回结果
-    Backend ->> User: 格式化为图表+文本
-```
-
-- 创建session，创建map,记录数据集与duckdb实例关系
-- 查看数据集对应的duckdb实例是否存在，不存在创建一个新的duckdb实例
-- duckdb实例初始化，加载数据集中的数据库与表
-    - Non-Materialization Attach方式访问远程数据库
-    - Materialization： 创建内存表，将远程数据库表数据同步到duckdb实例内存中
-
-> 注意： 确保在duckdb实例中数据库名称唯一
-
-##### 权限控制流程
-
-**数据集权限控制**
-
-```mermaid
-graph TD
-    A[查询请求] --> B{用户有数据集权限}
-    B -->|是| C{检查各数据源权限}
-    C -->|全部通过| D[执行联邦查询]
-    C -->|拒绝| E[返回权限错误]
-    B -->|否| F[返回权限错误]
-```
-
-#### 4.1.6 代码图
-
-##### API接口
-
-```mermaid
-classDiagram
-    class Frontend {
-        +render()
-        +handleUserEvents()
-    }
-
-    class FastAPI {
-        +APIRouter()
-        +endpoints
-    }
-
-    class DatabaseService {
-        +getSession()
-        +CRUDOperations()
-    }
-
-    class LangchainAgent {
-        +initializeAgent()
-        +processRequest()
-    }
-
-    Frontend --> FastAPI: HTTP调用
-    FastAPI --> DatabaseService: 数据访问
-    FastAPI --> LangchainAgent: 代理调用
-    LangchainAgent --> DuckDB: 执行查询
-```
-
-##### 联邦查询引擎
-
-部分代码（Pseudo）:
-
-```text
-class FederatedQueryEngine:
-    def execute(self, dataset_id: int, sql: str):
-        # 获取数据集配置
-        dataset = get_dataset(dataset_id)
-        
-        # 获取关联数据源
-        data_sources = get_dataset_sources(dataset_id)
-        
-        # 创建DuckDB连接
-        conn = duckdb.connect()
-        
-        # 附加所有数据源
-        for ds in data_sources:
-            conn.execute(f"""
-                ATTACH '{self._build_connection_string(ds)}' 
-                AS {ds.alias} (TYPE {ds.type})
-            """)
-        
-        # 创建表映射视图
-        for mapping in dataset.config["table_mappings"]:
-            conn.execute(f"""
-                CREATE VIEW {mapping['target_name']} AS 
-                SELECT * FROM {mapping['source_alias']}.{mapping['source_table']}
-            """)
-        
-        # 执行查询
-        return conn.execute(sql).fetchdf()
-    
-    def _build_connection_string(self, data_source):
-        config = json.loads(data_source.connection_config)
-        if data_source.type == "mysql":
-            return f"mysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
-        # 其他数据库类型处理...
-```
-
-##### 权限检验
-
-数据集权限验证部分代码（Pseudo）
-
-```text
-def check_query_permission(user, dataset_id, sql):
-    # 1. 验证数据集权限
-    if not has_dataset_access(user, dataset_id):
-        raise PermissionDenied("No dataset access")
-    
-    # 2. 获取数据集关联的所有数据源
-    data_sources = get_dataset_sources(dataset_id)
-    
-    # 3. 解析SQL中使用的表
-    used_tables = parse_sql_tables(sql)
-    
-    # 4. 验证每个表对应的数据源权限
-    for table in used_tables:
-        ds_alias = table.split('.')[0]  # 从db.table中提取别名
-        data_source = next(ds for ds in data_sources if ds.alias == ds_alias)
-        
-        if not has_data_source_access(user, data_source.id):
-            # 权限不足时进行脱敏处理
-            sql = apply_data_masking(sql, table)
-    
-    return sql
-```
+#### 4.1.5 部署架构
 
 ### 4.2 核心API概览
 
@@ -622,10 +454,10 @@ def check_query_permission(user, dataset_id, sql):
 
 #### Agent管理
 
-| 端点                                      | 方法   | 功能      |
-|-----------------------------------------|------|---------|
-| /projects/{project_id}/agents           | POST | 创建Agent |
-| /agents/{agent_id}/rollback?version=1.2 | POST | 创建Agent |
+| 端点                            | 方法   | 功能      |
+|-------------------------------|------|---------|
+| /projects/{project_id}/agents | POST | 创建Agent |
+| /agents/{agent_id}/rollback   | POST | 创建Agent |
 
 #### 对话系统
 
@@ -774,7 +606,6 @@ configuration样例
   "tables": [
     {
       "source_id": 1,
-      // 此处的source_id由关联表提供，这里记录每个表所属的数据源
       "table_name": "orders",
       "columns": [
         "id",
@@ -795,10 +626,8 @@ configuration样例
   "table_mappings": [
     {
       "source_alias": "mysql_orders",
-      // 对应DATASET_DATA_SOURCE.alias
       "source_table": "orders",
       "target_name": "sales_orders"
-      // 数据集内表名
     },
     {
       "source_alias": "pg_customers",
@@ -816,8 +645,9 @@ configuration样例
     }
   ]
 }
-
 ```
+
+> source_id: 数据源ID; source_alias: 对应DATASET_DATA_SOURCE.alias; target_name: 数据集内表名
 
 ##### 数据集数据源表(dataset_data_source)
 
@@ -855,7 +685,7 @@ configuration样例
 
 - 创建时自动生成（若未提供）：
 
-   ```python
+   ```text
    def generate_alias(data_source_name):
     return f"ds_{sanitize_name(data_source_name)}_{short_uuid()}"
    ```
@@ -879,12 +709,16 @@ configuration样例
 
 ##### Agent 版本表 (agent_version)
 
-| 字段         | 类型        | 描述       | 约束             |
-|:-----------|:----------|:---------|:---------------|
-| id         | INTEGER   | 主键       | PK             |
-| agent_id   | INTEGER   | Agent ID | FK → agent(id) |
-| config     | TEXT      | 配置信息     | NOT NULL       |
-| created_at | TIMESTAMP | 创建时间     |                |
+| 字段         | 类型          | 描述           | 约束             |
+|:-----------|:------------|:-------------|:---------------|
+| id         | INTEGER     | 主键           | PK             |
+| agent_id   | INTEGER     | Agent ID     | FK → agent(id) |
+| version    | VARCHAR(20) | 语义化版本 v1.2.3 | NOT NULL       |
+| config     | TEXT        | Agent配置信息    | NOT NULL       |
+| checksum   | CHAR(64)    | 配置SHA256校验和  | NOT NULL       |
+| created_by | INTEGER     | 创建者ID        | FK → user(id)  |
+| created_at | TIMESTAMP   | 创建时间         |                |
+| is_current | BOOLEAN     | 是否为当前版本      | 默认False        |
 
 ##### Agent 指标表 (agent_metric)
 
@@ -931,6 +765,17 @@ configuration样例
 | role_id    | INTEGER | 角色ID | FK → role(id)            |
 |            |         |      | PK (project_id, user_id) |
 
+##### 审计表 (audit_log)
+
+| 字段          | 类型          | 描述                         | 约束            |
+|-------------|-------------|----------------------------|---------------|
+| operator_id | BIGINT      | 操作人 ID                     | FK → user(id) |
+| action      | VARCHAR(20) | 操作类型（CREATE/UPDATE/DELETE） |               |
+| target_type | VARCHAR(30) | 操作对象类型（DATASOURCE/AGENT）   |               |
+| old_value   | JSONB       | 操作前的值（JSON 格式）             |               |
+| new_value   | JSONB       | 操作后的值（JSON 格式）             |               |
+| ip_address  | INET        | 操作来源 IP 地址                 |               |
+
 #### 数据流
 
 ```mermaid
@@ -956,6 +801,7 @@ CREATE INDEX idx_message_feedback ON message(feedback);
 CREATE INDEX idx_project_owner ON project(owner_id);
 CREATE INDEX idx_dataset_project ON dataset(project_id);
 CREATE INDEX idx_conversation_user ON conversation(user_id);
+CREATE INDEX idx_agent_version ON agent_version(agent_id, version);
 ```
 
 ##### 外键索引
@@ -966,6 +812,9 @@ CREATE INDEX fk_conversation_project ON conversation(project_id);
 ```
 
 #### 数据生命周期
+
+- 数据保留策略：对话历史自动归档机制（如6个月后转冷存储）
+- 数据销毁协议：项目删除时的级联数据清除流程
 
 ```mermaid
 gantt
@@ -1059,7 +908,9 @@ sequenceDiagram
 
 #### SQL安全：
 
-```python
+Pseudo Code:
+
+```text 
 BLACKLIST = ["DROP", "DELETE", "TRUNCATE", "ALTER", "GRANT"]
 WHITELIST = ["SELECT", "WITH", "SHOW"]
 
@@ -1092,7 +943,9 @@ CREATE TABLE audit_log (
 
 #### 关键操作事务处理：
 
-```python
+Pseudo Code：
+
+```text
 with db.transaction():
     create_message()
     update_conversation()
@@ -1101,7 +954,7 @@ with db.transaction():
 
 #### 错误处理机制：
 
-- **SQL执行失败重试**
+- **SQL执行失败重试** 指数退避算法,重试3次
 
 - **Agent故障转移**
 
